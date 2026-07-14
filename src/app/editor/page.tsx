@@ -1,22 +1,48 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { Difficulty, GameId, PuzzleDefinition } from "@/engine/types";
 import { GAMES } from "@/lib/games";
-import { generateTraceAsync } from "@/workers/traceClient";
-import { generateParcelAsync } from "@/workers/parcelClient";
-import { generateWeaveAsync } from "@/workers/weaveClient";
-import { makeRandomSeed } from "@/engine/trace/generate";
 import { exportJson, importJson, encodeShare } from "@/engine/io";
 import { PrintablePuzzle } from "@/components/game/PrintablePuzzle";
-import { TraceEditor } from "@/components/game/TraceEditor";
+
+// The generators + solvers (and, in Build mode, the Trace solver) are the heavy
+// parts of this route. Load them ONLY when actually needed — the generator
+// clients are dynamically imported inside generate(), and the free-form builder
+// is a lazily-loaded chunk — so the editor's initial JS stays small.
+const TraceEditor = dynamic(() => import("@/components/game/TraceEditor").then((m) => m.TraceEditor), {
+  ssr: false,
+  loading: () => (
+    <div className="mx-auto aspect-square w-full max-w-[460px] animate-pulse rounded-lg bg-surface-2" aria-busy="true" />
+  ),
+});
 
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "expert"];
 
+/** URL-safe random seed (kept local so the editor doesn't statically import the
+ *  generator module just for this helper). */
+function randomSeed(): string {
+  const g = globalThis as { crypto?: Crypto };
+  if (g.crypto?.getRandomValues) {
+    const buf = new Uint32Array(2);
+    g.crypto.getRandomValues(buf);
+    return `s-${buf[0]!.toString(36)}${buf[1]!.toString(36)}`;
+  }
+  return `s-${Date.now().toString(36)}`;
+}
+
 async function generate(game: GameId, difficulty: Difficulty, seed: string): Promise<PuzzleDefinition> {
-  if (game === "path") return generateTraceAsync({ difficulty, seed });
-  if (game === "partition") return generateParcelAsync({ difficulty, seed });
+  if (game === "path") {
+    const { generateTraceAsync } = await import("@/workers/traceClient");
+    return generateTraceAsync({ difficulty, seed });
+  }
+  if (game === "partition") {
+    const { generateParcelAsync } = await import("@/workers/parcelClient");
+    return generateParcelAsync({ difficulty, seed });
+  }
+  const { generateWeaveAsync } = await import("@/workers/weaveClient");
   return generateWeaveAsync({ difficulty, seed });
 }
 
@@ -139,7 +165,7 @@ export default function EditorPage() {
             className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm"
             placeholder="seed"
           />
-          <button onClick={() => setSeed(makeRandomSeed())} className="rounded-lg border border-line px-3 py-2 text-sm">
+          <button onClick={() => setSeed(randomSeed())} className="rounded-lg border border-line px-3 py-2 text-sm">
             🎲
           </button>
           <button
