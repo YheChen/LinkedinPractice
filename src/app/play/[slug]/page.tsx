@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import { gameBySlug } from "@/lib/games";
 import { Placeholder } from "@/components/shell/Placeholder";
 import { TracePlay } from "@/components/game/TracePlay";
+import { ParcelPlay } from "@/components/game/ParcelPlay";
 
 const MILESTONE: Record<string, string> = {
-  parcel: "Milestone 5 · Parcel",
   weave: "Milestone 7 · Weave",
 };
 
@@ -14,6 +14,7 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
   if (!game) notFound();
 
   if (slug === "trace") return <TracePlay />;
+  if (slug === "parcel") return <ParcelPlay />;
 
   return (
     <Placeholder title={game.name} milestone={MILESTONE[slug] ?? "Upcoming"}>
