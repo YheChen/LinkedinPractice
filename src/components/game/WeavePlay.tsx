@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Difficulty, WordPathPuzzle } from "@/engine/types";
 import { createWeaveSession, type WeaveStore } from "@/engine/weave/session";
+import { useResume } from "@/engine/session/useResume";
 import { makeRandomSeed } from "@/engine/trace/generate";
 import { generateWeaveAsync } from "@/workers/weaveClient";
 import { WeaveBoard } from "./WeaveBoard";
@@ -96,6 +97,7 @@ export function WeavePlay({
 
 function WeaveGame({ puzzle, onNext }: { puzzle: WordPathPuzzle; onNext: () => void }) {
   const store: WeaveStore = useMemo(() => createWeaveSession(puzzle), [puzzle]);
+  useResume(store, puzzle.meta.id);
 
   const running = store((s) => s.running);
   const stopwatch = store((s) => s.stopwatch);

@@ -60,6 +60,9 @@ export interface ParcelSessionState {
   redo: () => void;
   restart: () => void;
   hint: () => void;
+
+  snapshot: () => import("@/lib/storage").AttemptSnapshot | null;
+  restore: (snap: import("@/lib/storage").AttemptSnapshot) => void;
 }
 
 export function createParcelSession(puzzle: PartitionPuzzle) {
@@ -219,6 +222,36 @@ export function createParcelSession(puzzle: PartitionPuzzle) {
         const rects = computeParcelHint(s.puzzle, s.live);
         if (!rects) return;
         applyRects(rects, { hintsUsed: 1 });
+      },
+
+      snapshot: () => {
+        const s = get();
+        if (s.solved || s.live.length === 0) return null;
+        return {
+          puzzleId: s.puzzle.meta.id,
+          player: s.live,
+          metrics: s.metrics,
+          timer: { accumulatedMs: s.stopwatch.elapsedMs(), wasRunning: false },
+          updatedAt: Date.now(),
+        };
+      },
+
+      restore: (snap) => {
+        const rects = snap.player as DrawnRect[];
+        if (!Array.isArray(rects) || rects.length === 0) return;
+        set({
+          live: rects,
+          history: createHistory(rects),
+          metrics: { ...EMPTY_METRICS, ...snap.metrics },
+          stopwatch: new Stopwatch({ accumulatedMs: snap.timer.accumulatedMs, runningSince: null }),
+          running: false,
+          finalized: false,
+          dragging: false,
+          anchor: null,
+          cursor: null,
+          preview: null,
+          ...recompute(rects),
+        });
       },
     };
   });
