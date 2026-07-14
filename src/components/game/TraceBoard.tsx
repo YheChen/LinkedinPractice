@@ -89,7 +89,6 @@ export function TraceBoard({ store }: { store: TraceStore }) {
     [store, rows, cols],
   );
 
-  const liveSet = useMemo(() => new Set(live), [live]);
   const head = live[live.length - 1];
   const cx = (i: number) => (fromIndex(i, cols).c + 0.5);
   const cy = (i: number) => (fromIndex(i, cols).r + 0.5);
@@ -113,8 +112,6 @@ export function TraceBoard({ store }: { store: TraceStore }) {
       >
         {Array.from({ length: rows * cols }, (_, i) => {
           const cp = checkpointAt(puzzle, i);
-          const onPath = liveSet.has(i);
-          const isHead = i === head;
           const isHint = hintCells.includes(i);
           return (
             <div
@@ -123,24 +120,21 @@ export function TraceBoard({ store }: { store: TraceStore }) {
               className="relative flex items-center justify-center border border-line/60"
               style={{ color: "rgb(var(--c-ink))" }}
             >
-              {onPath && (
+              {/* Hint highlight only — the path itself is drawn as the SVG line. */}
+              {isHint && (
                 <span
                   aria-hidden
                   className="absolute inset-1 rounded-md"
-                  style={{
-                    background: isHint
-                      ? "color-mix(in srgb, rgb(var(--c-warn)) 34%, transparent)"
-                      : "color-mix(in srgb, rgb(var(--c-path)) 16%, transparent)",
-                  }}
+                  style={{ background: "color-mix(in srgb, rgb(var(--c-warn)) 40%, transparent)" }}
                 />
               )}
               {cp !== undefined && (
                 <span
-                  className="relative z-10 grid h-[62%] w-[62%] place-items-center rounded-full text-[min(4vw,1.1rem)] font-bold"
+                  className="relative z-10 grid h-[66%] w-[66%] place-items-center rounded-full text-[min(4.4vw,1.15rem)] font-bold text-white"
                   style={{
-                    background: isHead || onPath ? "rgb(var(--c-path))" : "rgb(var(--c-surface-2))",
-                    color: isHead || onPath ? "white" : "rgb(var(--c-ink))",
-                    outline: cp === 1 ? "2px solid rgb(var(--c-path))" : "none",
+                    // Start (1) uses the accent; the rest are crisp dark badges.
+                    background: cp === 1 ? "rgb(var(--c-path))" : "rgb(var(--c-ink))",
+                    boxShadow: "0 1px 2px rgba(0,0,0,.35)",
                   }}
                 >
                   {cp}
@@ -157,18 +151,24 @@ export function TraceBoard({ store }: { store: TraceStore }) {
           preserveAspectRatio="none"
           className="pointer-events-none absolute inset-0 h-full w-full"
         >
+          <defs>
+            <linearGradient id="zip-line" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="rgb(var(--c-path))" />
+              <stop offset="100%" stopColor="rgb(var(--c-tile))" />
+            </linearGradient>
+          </defs>
           {live.length > 1 && (
             <polyline
               points={points}
               fill="none"
-              stroke="rgb(var(--c-path))"
-              strokeWidth={0.3}
+              stroke="url(#zip-line)"
+              strokeWidth={0.46}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           )}
           {head !== undefined && (
-            <circle cx={cx(head)} cy={cy(head)} r={0.16} fill="rgb(var(--c-path))" />
+            <circle cx={cx(head)} cy={cy(head)} r={0.2} fill="url(#zip-line)" />
           )}
           {puzzle.walls.map((w) => {
             const [a, b] = w.split(":").map(Number) as [number, number];
