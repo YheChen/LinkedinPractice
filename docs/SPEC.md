@@ -26,8 +26,9 @@ Our three games (original names):
   so solvers/generators run identically in Node (tests), the main thread, and a
   **Web Worker**. This is the most important boundary: game logic must be testable
   and worker-portable.
-- **PostgreSQL** via Prisma (schema below), deployable on Supabase or Neon. Supabase
-  chosen when we want managed auth + row-level security out of the box.
+- **No database.** All state is local-first (localStorage + IndexedDB) behind a
+  `Storage` interface; puzzles are reproducible from seeds so nothing is stored server
+  side (see §7). A cloud adapter (Supabase/Neon) is an optional later drop-in.
 - **Rendering:** DOM+SVG hybrid per game (see §"Rendering choice"). Not Canvas by
   default — accessibility and hit-testing win for grid puzzles at our sizes.
 
@@ -184,67 +185,73 @@ All draw only from `createRng(seed)`; `seed + generatorVersion` ⇒ identical pu
 
 ---
 
-## 7. Database schema (Prisma / PostgreSQL)
+## 7. Persistence model — NO DATABASE (local-first)
 
-Immutable definitions are stored **once**, separate from every attempt.
+**Decision:** the platform ships with **no server database**. Puzzles are reproducible
+from `(game, difficulty, seed, generatorVersion)`, so there is nothing to store server
+side. All player data lives on-device.
 
+Why this works:
+- **Unlimited / daily / archive** are all just seeds. `daily(date, game)` = a fixed
+  string seed derived from the ISO date (`daily:2026-07-14:trace`) → the same board for
+  everyone, computed on the client, stored nowhere.
+- **Share a puzzle** = put the seed (or, for custom/imported boards, a URL-safe
+  base64 of the schema-validated JSON) in the query string. No backend.
+- **Progress, best times, stats, streaks, custom & imported puzzles** persist to
+  **localStorage** (small key/values) and **IndexedDB** (attempt blobs, offline packs).
+
+### Storage abstraction (swap-in cloud later with zero rework)
+All reads/writes go through one interface so a future Supabase/Neon adapter is a drop-in:
+```ts
+interface Storage {
+  getProgress(puzzleId): Promise<AttemptSnapshot | null>;
+  saveProgress(puzzleId, snapshot): Promise<void>;
+  recordCompletion(result: CompletedGame): Promise<void>;
+  getBest(game, difficulty): Promise<number | null>;
+  getStats(game): Promise<Statistic>;
+  listCustomPuzzles(): Promise<StoredPuzzle[]>;
+  putCustomPuzzle(p: StoredPuzzle): Promise<void>;
+}
+// LocalStorageAdapter (now) → SupabaseAdapter (optional, later) implement the same shape.
 ```
-User(id, handle, email, createdAt)
-PuzzleDefinition(id PK = content hash, game, difficulty, rows, cols,
-                 seed, generatorVersion, formatVersion, payload JSONB, createdAt)
-  @@index([game, difficulty])
-DailyAssignment(id, date DATE, game, puzzleId FK->PuzzleDefinition, UNIQUE(date, game))
-GeneratedSeed(id, game, difficulty, seed, generatorVersion, puzzleId, UNIQUE(game,seed,generatorVersion))
-Attempt(id, userId FK, puzzleId FK, startedAt, status[in_progress|completed|abandoned],
-        stateBlob JSONB /*resumable*/, metrics JSONB, updatedAt)
-  @@index([userId, puzzleId])
-CompletedGame(id, userId, puzzleId, completedAt, elapsedMs, backtracks, hintsUsed,
-              restarts, mistakes, verified BOOL, UNIQUE(userId, puzzleId))
-BestScore(userId, game, difficulty, bestElapsedMs, puzzleId, UNIQUE(userId,game,difficulty))
-UserPuzzle(id, authorId FK, payload JSONB /*schema-validated*/, isPublic, createdAt)
-ImportedPuzzle(id, userId, payload JSONB, source, createdAt)
-Statistic(userId, game, played, completed, currentStreak, maxStreak, updatedAt)
-Achievement(id, userId, key, earnedAt, UNIQUE(userId, key))   -- optional
-```
+On-device record shapes mirror the old table columns (kept as TS types, not SQL):
+`CompletedGame{puzzleId, game, completedAt, elapsedMs, backtracks, hintsUsed, restarts,
+mistakes}`, `BestScore{game, difficulty, bestElapsedMs, puzzleId}`,
+`Statistic{game, played, completed, currentStreak, maxStreak}`,
+`StoredPuzzle{payload, source:'custom'|'imported'|'seed'}`.
 
-**Constraints/indexes:** content-hash PK dedupes identical definitions; unique
-`(date, game)` for daily; unique `(userId, puzzleId)` for completions; JSONB payloads
-validated by Zod before insert. **RLS:** a user reads/writes only their own `Attempt`,
-`CompletedGame`, `Statistic`, `Achievement`, private `UserPuzzle`. `PuzzleDefinition`,
-`DailyAssignment`, public `UserPuzzle` are world-readable, service-role-writable.
+### Curated content without a DB
+A small set of hand-verified puzzles ships as **static JSON packs** in
+`/public/packs/*.json` (schema-validated at load). Used for the launch archive and for
+**Weave** dailies (which benefit from an editorial/quality pass). Everything else is
+seed-generated on demand.
 
-**Local-first + merge:** signed-out play persists to localStorage/IndexedDB
-(`gridwright.*`). On sign-in we merge: keep best time per `(game,puzzle)`, sum counters,
-recompute streaks; server recomputes `verified`.
+**"Anti-cheat" is not applicable:** it's a single-player local app; completion is
+validated locally by re-running the pure validator against the immutable definition.
+Times are the player's own. If cloud leaderboards are added later, the Supabase adapter
+re-validates on write (the pure validator already runs anywhere).
 
 ---
 
-## 8. API design
+## 8. Module API (client-side, no HTTP)
 
-Route Handlers under `app/api`. Server never trusts client-reported solved/time.
+With no backend, the "API" is a set of pure/async **module functions** (some may run in
+a Web Worker). No Route Handlers, no auth, no rate limiting needed.
 
 ```
-GET  /api/puzzle/:id                 -> PuzzleDefinition
-GET  /api/daily?date=&game=          -> {puzzleId, definition}
-GET  /api/archive?game=&from=&to=&difficulty=&status=&page=  -> paginated list
-POST /api/attempt                    {puzzleId} -> {attemptId, startedAt}
-PUT  /api/attempt/:id                {stateBlob, metrics} -> ok   (autosave, throttled)
-POST /api/attempt/:id/complete       {finalState} -> server RE-SOLVES finalState against
-                                       the immutable def; returns {verified, metrics}
-POST /api/generate                   {game, difficulty, seed?} -> definition (rate-limited)
-POST /api/validate                   {definition} -> {valid, unique, errors[]} (Zod + solver)
-POST /api/import  /  GET /api/export/:id            -> JSON (schema-checked)
-GET  /api/stats                      -> aggregates for current user
+loadPuzzle(game, {seed|date|customPayload}, difficulty) -> PuzzleDefinition   // generate or decode
+getDaily(date, game)                                    -> PuzzleDefinition
+listArchive({game, from, to, difficulty})               -> PuzzleRef[]         // enumerated seeds
+startAttempt(puzzleId)                                  -> AttemptSnapshot     // via Storage
+saveProgress(puzzleId, snapshot)                        -> void                // throttled autosave
+completeAttempt(puzzleId, finalState)                   -> {verified, metrics} // local re-validate
+generate(game, difficulty, seed?)                       -> PuzzleDefinition    // Web Worker
+validateCustom(definition)                              -> {valid, unique, errors[]}
+importJson(text) / exportJson(def)                      -> PuzzleDefinition / string  // Zod-checked
+getStats(game) / getBest(game, difficulty)              -> aggregates
 ```
-
-**Anti-cheat (proportionate for a casual game):** (1) completion is **verified
-server-side** by replaying the submitted final state through the pure validator against
-the stored immutable definition — a fabricated "solved" is rejected. (2) `elapsedMs` is
-sanity-bounded: not below a per-puzzle theoretical floor, not below the sum of autosave
-intervals observed for the attempt; implausible times are stored `verified=false` and
-excluded from leaderboards, not blocked. (3) Rate-limit `/generate` and `/validate`
-per IP+user. We deliberately avoid heavy anti-cheat (server-authoritative move stream)
-— overkill for casual puzzles.
+An optional thin HTTP layer (the §-original Route Handlers) can be re-added verbatim if a
+DB is introduced later — the function signatures above are the same either way.
 
 ---
 
@@ -319,12 +326,15 @@ class changes on gesture end.
 6. Parcel exact-cover solver + generator + uniqueness/quality gates.
 7. Weave board + word-trace reducer + backtracking.
 8. Weave generator + dictionary pipeline + ambiguity solver + quality ranking.
-9. Archive + persistence (daily, filters, calendar, seeds, resume).
-10. Accounts + statistics + local→account merge + RLS.
-11. Puzzle editor + import/export + share links + print mode.
+9. Archive + **local persistence** (daily via date-seeds, filters, calendar, resume) —
+   `Storage` interface + `LocalStorageAdapter` (no DB).
+10. Statistics + best times + streaks (all on-device); optional static curated packs.
+11. Puzzle editor + import/export + share-by-seed/URL links + print mode.
 12. PWA + offline packs (service worker, IndexedDB puzzle cache).
 13. Accessibility + performance audit (axe, Lighthouse, low-end profiling).
-14. Production deployment (Supabase/Neon, rate limits, monitoring).
+14. Production deployment — **static/Vercel, no env vars, no database**.
+    (A Supabase adapter for cross-device sync/leaderboards is an optional post-launch
+    add-on, implemented behind the existing `Storage` interface.)
 
 Each milestone lists features / components / files / data structures / tests / acceptance
 / risks in the project tracker; risks called out: Trace generator uniqueness cost at
