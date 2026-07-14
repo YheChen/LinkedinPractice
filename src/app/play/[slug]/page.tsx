@@ -3,10 +3,7 @@ import { gameBySlug } from "@/lib/games";
 import { Placeholder } from "@/components/shell/Placeholder";
 import { TracePlay } from "@/components/game/TracePlay";
 import { ParcelPlay } from "@/components/game/ParcelPlay";
-
-const MILESTONE: Record<string, string> = {
-  weave: "Milestone 7 · Weave",
-};
+import { WeavePlay } from "@/components/game/WeavePlay";
 
 export default async function PlayPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -15,15 +12,11 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
 
   if (slug === "trace") return <TracePlay />;
   if (slug === "parcel") return <ParcelPlay />;
+  if (slug === "weave") return <WeavePlay />;
 
   return (
-    <Placeholder title={game.name} milestone={MILESTONE[slug] ?? "Upcoming"}>
-      <p className="mb-3">{game.rules}</p>
-      <p>
-        The shared board shell, pointer-input system, timer, and undo/redo history are already in
-        place (<code>src/input</code>, <code>src/engine</code>). This route mounts the interactive{" "}
-        {game.name} board in its milestone.
-      </p>
+    <Placeholder title={game.name} milestone="Upcoming">
+      <p>{game.rules}</p>
     </Placeholder>
   );
 }
