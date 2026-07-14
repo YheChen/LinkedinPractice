@@ -27,6 +27,7 @@ import { storage } from "@/lib/storage";
 import type { Coord } from "@/lib/grid";
 import { toIndex } from "@/lib/grid";
 import { Box, boxFromCorners, boxContains, placeRect, removeRectAt, validate } from "./rules";
+import { computeParcelHint } from "./solve";
 
 export interface ParcelSessionState {
   puzzle: PartitionPuzzle;
@@ -58,6 +59,7 @@ export interface ParcelSessionState {
   undo: () => void;
   redo: () => void;
   restart: () => void;
+  hint: () => void;
 }
 
 export function createParcelSession(puzzle: PartitionPuzzle) {
@@ -207,6 +209,15 @@ export function createParcelSession(puzzle: PartitionPuzzle) {
           metrics: { ...s.metrics, restarts: s.metrics.restarts + 1, redraws: 0, mistakes: 0 },
           ...recompute([]), // sets solved:false + fresh message/errorCells
         });
+      },
+
+      hint: () => {
+        const s = get();
+        if (s.solved) return;
+        s.startTimer();
+        const rects = computeParcelHint(s.puzzle, s.live);
+        if (!rects) return;
+        applyRects(rects, { hintsUsed: 1 });
       },
     };
   });
