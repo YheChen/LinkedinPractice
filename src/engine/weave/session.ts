@@ -28,7 +28,7 @@ import {
   submit,
   validate,
 } from "./rules";
-import { findWordPath } from "./solve";
+import { findWordPath, solveWeave } from "./solve";
 
 export interface WeaveSessionState {
   puzzle: WordPathPuzzle;
@@ -203,18 +203,40 @@ export function createWeaveSession(puzzle: WordPathPuzzle) {
         if (s.solvedAll) return;
         s.startTimer();
         const used = solvedCells(s.solved);
+
+        const place = (path: number[]) => {
+          const solved = [...s.solved, path];
+          set({
+            solved,
+            active: [],
+            history: commit(s.history, solved),
+            metrics: { ...s.metrics, hintsUsed: s.metrics.hintsUsed + 1 },
+            ...recompute(solved),
+          });
+          finalizeIfSolved(solved);
+        };
+
+        // Prefer a word from the FULL solution so the revealed path is globally
+        // consistent — a single word can often be traced multiple ways, and
+        // findWordPath alone could pick one that strands the remaining words.
+        const solution = solveWeave(s.puzzle);
+        if (solution) {
+          const sameCells = (a: number[], b: number[]) =>
+            a.length === b.length && a.every((x, i) => x === b[i]);
+          for (const path of solution) {
+            if (s.solved.some((w) => sameCells(w, path))) continue;
+            if (path.every((c) => !used.has(c))) {
+              place(path);
+              return;
+            }
+          }
+        }
+
+        // Fallback (e.g. imported / non-unique board): greedily place any word.
         for (const word of remainingWords(s.puzzle, s.solved)) {
           const path = findWordPath(s.puzzle, used, word);
           if (path) {
-            const solved = [...s.solved, path];
-            set({
-              solved,
-              active: [],
-              history: commit(s.history, solved),
-              metrics: { ...s.metrics, hintsUsed: s.metrics.hintsUsed + 1 },
-              ...recompute(solved),
-            });
-            finalizeIfSolved(solved);
+            place(path);
             return;
           }
         }
