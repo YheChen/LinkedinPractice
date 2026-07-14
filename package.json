@@ -23,6 +23,7 @@
     "zustand": "5.0.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.1",
     "@playwright/test": "1.50.0",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.2.0",
@@ -32,6 +33,7 @@
     "@types/react-dom": "19.0.3",
     "@vitejs/plugin-react": "4.3.4",
     "autoprefixer": "10.4.20",
+    "axe-core": "4.10.2",
     "eslint": "9.18.0",
     "eslint-config-next": "15.1.6",
     "fast-check": "3.23.2",
