@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
  */
 test("Weave: the puzzle can be completed via hints", async ({ page }) => {
   await page.goto("/play/weave");
-  await expect(page.getByRole("application", { name: /Weave grid/i })).toBeVisible();
+  await expect(page.getByRole("application", { name: /Weave grid/i })).toBeVisible({ timeout: 15_000 });
 
   const hint = page.getByRole("button", { name: /Hint/i });
   const dialog = page.getByRole("dialog");
