@@ -68,6 +68,53 @@ export function solveWeave(puzzle: WordPathPuzzle): number[][] | null {
   return place(0) ? result : null;
 }
 
+export interface CountResult {
+  /** number of full tilings found, capped */
+  count: number;
+  /** true if the search hit its step budget before finishing (result is a lower bound) */
+  aborted: boolean;
+}
+
+/**
+ * Count the ways the puzzle's word multiset can tile the grid, early-exiting at
+ * `cap`. This is the ambiguity/uniqueness check used by the generator: a good
+ * puzzle has exactly one tiling of its intended words. A step budget bounds the
+ * cost; if hit, `aborted` is set and the caller treats the board as non-unique
+ * (and resamples) rather than trusting an incomplete search.
+ */
+export function countWeaveSolutions(
+  puzzle: WordPathPuzzle,
+  cap = 2,
+  budget = 300_000,
+): CountResult {
+  const words = puzzle.words;
+  const used = new Set<number>();
+  let count = 0;
+  let steps = 0;
+  let aborted = false;
+
+  const place = (i: number): void => {
+    if (aborted || count >= cap) return;
+    if (i === words.length) {
+      count++;
+      return;
+    }
+    for (const p of allWordPaths(puzzle, used, words[i]!)) {
+      if (++steps > budget) {
+        aborted = true;
+        return;
+      }
+      p.forEach((c) => used.add(c));
+      place(i + 1);
+      p.forEach((c) => used.delete(c));
+      if (aborted || count >= cap) return;
+    }
+  };
+
+  place(0);
+  return { count, aborted };
+}
+
 /** All distinct paths spelling `word` among unused cells (bounded enumeration). */
 export function allWordPaths(
   puzzle: WordPathPuzzle,

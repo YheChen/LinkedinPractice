@@ -1,19 +1,92 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Difficulty, WordPathPuzzle } from "@/engine/types";
 import { createWeaveSession, type WeaveStore } from "@/engine/weave/session";
-import { WEAVE_5x5 } from "@/engine/weave/fixtures";
+import { makeRandomSeed } from "@/engine/trace/generate";
+import { generateWeaveAsync } from "@/workers/weaveClient";
 import { WeaveBoard } from "./WeaveBoard";
 import { Timer } from "./Timer";
 import { formatDuration } from "@/lib/timer";
 import { wordOf } from "@/engine/weave/rules";
 
-/** Weave play surface (Milestone 7). Fixture-based; the dictionary-driven
- *  generator + ambiguity solver arrive in Milestone 8. */
-export function WeavePlay() {
-  const store: WeaveStore = useMemo(() => createWeaveSession(WEAVE_5x5.puzzle), []);
+const DIFFICULTIES: { key: Difficulty; label: string }[] = [
+  { key: "easy", label: "Easy" },
+  { key: "medium", label: "Medium" },
+  { key: "hard", label: "Hard" },
+  { key: "expert", label: "Expert" },
+];
 
-  const puzzle = store((s) => s.puzzle);
+/** Weave play surface (Milestone 8): procedurally generated boards via the
+ *  dictionary-driven Web-Worker generator, with hints from the word solver. */
+export function WeavePlay() {
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [seed, setSeed] = useState<string>(() => makeRandomSeed());
+  const [puzzle, setPuzzle] = useState<WordPathPuzzle | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPuzzle(null);
+    generateWeaveAsync({ difficulty, seed }).then((p) => {
+      if (!cancelled) setPuzzle(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [difficulty, seed]);
+
+  return (
+    <div className="mx-auto w-full max-w-xl">
+      <header className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Weave</h1>
+          <p className="text-sm text-ink-muted">Thread the hidden words through the letters.</p>
+        </div>
+        <button
+          onClick={() => setSeed(makeRandomSeed())}
+          className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+        >
+          New puzzle
+        </button>
+      </header>
+
+      <div className="mb-3 flex flex-wrap gap-1" role="radiogroup" aria-label="Difficulty">
+        {DIFFICULTIES.map((d) => (
+          <button
+            key={d.key}
+            role="radio"
+            aria-checked={difficulty === d.key}
+            onClick={() => setDifficulty(d.key)}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+              difficulty === d.key ? "border-brand bg-brand text-brand-ink" : "border-line"
+            }`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {puzzle ? (
+        <WeaveGame key={puzzle.meta.id} puzzle={puzzle} onNext={() => setSeed(makeRandomSeed())} />
+      ) : (
+        <div
+          className="mx-auto aspect-square w-full animate-pulse rounded-card border border-line bg-surface-2"
+          style={{ maxWidth: "min(92vw, 520px)" }}
+          aria-busy="true"
+          aria-label="Generating puzzle"
+        />
+      )}
+
+      <p className="mt-4 text-center text-xs text-ink-muted">
+        Seed: <code className="rounded bg-surface-2 px-1.5 py-0.5">{seed}</code>
+      </p>
+    </div>
+  );
+}
+
+function WeaveGame({ puzzle, onNext }: { puzzle: WordPathPuzzle; onNext: () => void }) {
+  const store: WeaveStore = useMemo(() => createWeaveSession(puzzle), [puzzle]);
+
   const running = store((s) => s.running);
   const stopwatch = store((s) => s.stopwatch);
   const solvedAll = store((s) => s.solvedAll);
@@ -26,14 +99,13 @@ export function WeavePlay() {
   const restart = store((s) => s.restart);
   const hint = store((s) => s.hint);
 
-  // Word-length legend: one chip per target length, filled as found.
   const foundLengths = solved.map((p) => p.length);
   const legend = useMemo(() => {
-    const remainingFound = [...foundLengths];
+    const rem = [...foundLengths];
     return puzzle.wordLengths.map((len) => {
-      const i = remainingFound.indexOf(len);
+      const i = rem.indexOf(len);
       if (i !== -1) {
-        remainingFound.splice(i, 1);
+        rem.splice(i, 1);
         return { len, found: true };
       }
       return { len, found: false };
@@ -41,30 +113,25 @@ export function WeavePlay() {
   }, [puzzle.wordLengths, foundLengths]);
 
   return (
-    <div className="mx-auto w-full max-w-xl">
-      <header className="mb-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Weave</h1>
-          <p className="text-sm text-ink-muted">Thread the hidden words through the letters.</p>
-        </div>
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <ul className="flex flex-wrap gap-1.5" aria-label="Words to find, by length">
+          {legend.map((w, i) => (
+            <li
+              key={i}
+              className={`rounded-full border px-2.5 py-1 text-sm font-semibold ${
+                w.found ? "border-word bg-word/15 text-word line-through" : "border-line text-ink-muted"
+              }`}
+            >
+              {w.len}
+            </li>
+          ))}
+        </ul>
         <div className="rounded-lg border border-line bg-surface px-3 py-2 text-lg">
           <span className="sr-only">Timer: </span>
           <Timer stopwatch={stopwatch} running={running} />
         </div>
-      </header>
-
-      <ul className="mb-3 flex flex-wrap gap-1.5" aria-label="Words to find, by length">
-        {legend.map((w, i) => (
-          <li
-            key={i}
-            className={`rounded-full border px-2.5 py-1 text-sm font-semibold ${
-              w.found ? "border-word bg-word/15 text-word line-through" : "border-line text-ink-muted"
-            }`}
-          >
-            {w.len}
-          </li>
-        ))}
-      </ul>
+      </div>
 
       <WeaveBoard store={store} />
 
@@ -88,12 +155,15 @@ export function WeavePlay() {
             <h2 id="wdone" className="mt-2 text-xl font-bold">
               Solved in {formatDuration(metrics.elapsedMs)}
             </h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              {solved.map((p) => wordOf(puzzle, p)).join(" · ")}
-            </p>
-            <button onClick={restart} autoFocus className="mt-4 w-full rounded-lg bg-brand px-4 py-2.5 font-semibold text-brand-ink">
-              Play again
-            </button>
+            <p className="mt-1 text-sm text-ink-muted">{solved.map((p) => wordOf(puzzle, p)).join(" · ")}</p>
+            <div className="mt-4 flex gap-2">
+              <button onClick={restart} className="flex-1 rounded-lg border border-line px-4 py-2.5 font-semibold hover:bg-surface-2">
+                Replay
+              </button>
+              <button onClick={onNext} autoFocus className="flex-1 rounded-lg bg-brand px-4 py-2.5 font-semibold text-brand-ink">
+                New puzzle
+              </button>
+            </div>
           </div>
         </div>
       )}
