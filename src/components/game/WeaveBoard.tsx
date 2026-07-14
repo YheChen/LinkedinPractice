@@ -140,9 +140,39 @@ export function WeaveBoard({ store }: { store: WeaveStore }) {
         })}
 
         <svg aria-hidden viewBox={`0 0 ${cols} ${rows}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
+          {/* Connector path threaded through each solved word, in its colour. */}
+          {solved.map((word, wi) =>
+            word.length > 1 ? (
+              <polyline
+                key={`w${wi}`}
+                points={word.map((i) => `${cx(i)},${cy(i)}`).join(" ")}
+                fill="none"
+                stroke={wordTint(wi, 0.85)}
+                strokeWidth={0.26}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : null,
+          )}
+          {/* Live trace on top. */}
           {active.length > 1 && (
             <polyline points={points} fill="none" stroke="rgb(var(--c-word))" strokeWidth={0.28} strokeLinecap="round" strokeLinejoin="round" />
           )}
+          {/* Checkmark badge at the start of each completed word. */}
+          {solved.map((word, wi) => {
+            const s = word[0]!;
+            const { r, c } = fromIndex(s, cols);
+            const bx = c + 0.26;
+            const by = r + 0.26;
+            return (
+              <g key={`c${wi}`}>
+                <circle cx={bx} cy={by} r={0.17} fill={wordTint(wi, 1)} stroke="white" strokeWidth={0.03} />
+                <text x={bx} y={by} fontSize={0.24} textAnchor="middle" dominantBaseline="central" fill="white" fontWeight="bold">
+                  ✓
+                </text>
+              </g>
+            );
+          })}
         </svg>
       </div>
 

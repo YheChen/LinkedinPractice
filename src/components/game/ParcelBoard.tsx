@@ -24,6 +24,11 @@ export function ParcelBoard({ store }: { store: ParcelStore }) {
   const { rows, cols } = puzzle.meta;
   const errorSet = useMemo(() => new Set(errorCells), [errorCells]);
   const clueByCell = useMemo(() => new Map(puzzle.clues.map((c) => [c.cell, c])), [puzzle.clues]);
+  // Stable, distinct hue per region (by clue order) for the coloured fills/badges.
+  const hueByCell = useMemo(
+    () => new Map(puzzle.clues.map((c, i) => [c.cell, (i * 47) % 360])),
+    [puzzle.clues],
+  );
 
   const handlers = useMemo(
     () => ({
@@ -128,7 +133,13 @@ export function ParcelBoard({ store }: { store: ParcelStore }) {
             >
               {isCursor && <span aria-hidden className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-brand" />}
               {clue && (
-                <span className="relative z-10 flex items-center gap-0.5 text-[min(4.4vw,1.15rem)] font-bold">
+                <span
+                  className="relative z-10 flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-[min(4.2vw,1.1rem)] font-bold text-white"
+                  style={{
+                    background: `hsl(${hueByCell.get(i)} 58% 44%)`,
+                    boxShadow: "0 1px 2px rgba(0,0,0,.3)",
+                  }}
+                >
                   {clue.area}
                   <ShapeGlyph shape={clue.shape} />
                 </span>
@@ -144,16 +155,17 @@ export function ParcelBoard({ store }: { store: ParcelStore }) {
             for (let rr = rect.top; rr <= rect.bottom; rr++)
               for (let cc = rect.left; cc <= rect.right; cc++) cells.push(toIndex({ r: rr, c: cc }, cols));
             const bad = cells.some((c) => errorSet.has(c));
+            const h = hueByCell.get(rect.clueCell) ?? 0;
             return (
               <div
                 key={rect.clueCell}
-                className="absolute rounded-md border-2"
+                className="absolute rounded-lg border-2"
                 style={{
                   ...pct(rect),
-                  borderColor: bad ? "rgb(var(--c-danger))" : "rgb(var(--c-tile))",
+                  borderColor: bad ? "rgb(var(--c-danger))" : `hsl(${h} 55% 45%)`,
                   background: bad
-                    ? "color-mix(in srgb, rgb(var(--c-danger)) 10%, transparent)"
-                    : "color-mix(in srgb, rgb(var(--c-tile)) 12%, transparent)",
+                    ? "color-mix(in srgb, rgb(var(--c-danger)) 12%, transparent)"
+                    : `hsl(${h} 62% 52% / 0.22)`,
                 }}
               />
             );

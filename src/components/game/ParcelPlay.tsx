@@ -76,10 +76,12 @@ export function ParcelPlay({
         ))}
       </div>
 
-      <p className="mb-3 text-xs text-ink-muted">
+      <p className="mb-2 text-xs text-ink-muted">
         Drag corner to corner to draw a parcel around a clue; tap a parcel to remove it. The number
-        is its area; the icon is its shape (▪ square, ▬ wide, ▮ tall; no icon = any shape).
+        is its area.
       </p>
+      <ShapeLegend />
+      <div className="mb-3" />
 
       {puzzle ? (
         <ParcelGame key={puzzle.meta.id} puzzle={puzzle} onNext={() => setSeed(makeRandomSeed())} />
@@ -165,6 +167,37 @@ function ParcelGame({ puzzle, onNext }: { puzzle: PartitionPuzzle; onNext: () =>
         </div>
       )}
     </div>
+  );
+}
+
+/** Original shape-clue legend (square / tall / wide / any) shown above the board. */
+function ShapeLegend() {
+  const items: { label: string; w: number; h: number; free?: boolean }[] = [
+    { label: "Square", w: 12, h: 12 },
+    { label: "Tall", w: 8, h: 14 },
+    { label: "Wide", w: 14, h: 8 },
+    { label: "Any", w: 12, h: 12, free: true },
+  ];
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted" aria-label="Shape clues">
+      {items.map((it) => (
+        <li key={it.label} className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block border-2"
+            style={{
+              width: it.w,
+              height: it.h,
+              borderRadius: 3,
+              borderStyle: it.free ? "dashed" : "solid",
+              borderColor: "rgb(var(--c-ink-muted))",
+              background: it.free ? "transparent" : "color-mix(in srgb, rgb(var(--c-ink-muted)) 18%, transparent)",
+            }}
+          />
+          {it.label}
+        </li>
+      ))}
+    </ul>
   );
 }
 
