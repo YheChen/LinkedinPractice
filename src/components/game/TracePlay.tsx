@@ -24,15 +24,19 @@ const DIFFICULTIES: { key: Difficulty; label: string }[] = [
 export function TracePlay({
   initialSeed,
   initialDifficulty,
+  initialPuzzle,
 }: {
   initialSeed?: string | undefined;
   initialDifficulty?: Difficulty | undefined;
+  initialPuzzle?: PathPuzzle | undefined;
 } = {}) {
   const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty ?? "easy");
   const [seed, setSeed] = useState<string>(() => initialSeed ?? makeRandomSeed());
-  const [puzzle, setPuzzle] = useState<PathPuzzle | null>(null);
+  const [puzzle, setPuzzle] = useState<PathPuzzle | null>(initialPuzzle ?? null);
 
   useEffect(() => {
+    // Skip generation while the imported/shared puzzle is the active one.
+    if (initialPuzzle && puzzle === initialPuzzle) return;
     let cancelled = false;
     setPuzzle(null);
     generateTraceAsync({ difficulty, seed }).then((p) => {
@@ -41,6 +45,7 @@ export function TracePlay({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty, seed]);
 
   return (

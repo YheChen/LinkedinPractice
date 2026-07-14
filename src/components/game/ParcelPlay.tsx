@@ -21,15 +21,18 @@ const DIFFICULTIES: { key: Difficulty; label: string }[] = [
 export function ParcelPlay({
   initialSeed,
   initialDifficulty,
+  initialPuzzle,
 }: {
   initialSeed?: string | undefined;
   initialDifficulty?: Difficulty | undefined;
+  initialPuzzle?: PartitionPuzzle | undefined;
 } = {}) {
   const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty ?? "easy");
   const [seed, setSeed] = useState<string>(() => initialSeed ?? makeRandomSeed());
-  const [puzzle, setPuzzle] = useState<PartitionPuzzle | null>(null);
+  const [puzzle, setPuzzle] = useState<PartitionPuzzle | null>(initialPuzzle ?? null);
 
   useEffect(() => {
+    if (initialPuzzle && puzzle === initialPuzzle) return;
     let cancelled = false;
     setPuzzle(null);
     generateParcelAsync({ difficulty, seed }).then((p) => {
@@ -38,6 +41,7 @@ export function ParcelPlay({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty, seed]);
 
   return (

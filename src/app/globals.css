@@ -99,6 +99,20 @@ body {
   border-radius: 4px;
 }
 
+/* Print-friendly mode: hide app chrome, show only the printable puzzle. */
+@media print {
+  .no-print,
+  header:not(.printable header),
+  nav,
+  footer {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+  }
+}
+
 /* Screen-reader-only utility. */
 .sr-only {
   position: absolute;

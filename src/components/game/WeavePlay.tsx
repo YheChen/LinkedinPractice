@@ -22,15 +22,18 @@ const DIFFICULTIES: { key: Difficulty; label: string }[] = [
 export function WeavePlay({
   initialSeed,
   initialDifficulty,
+  initialPuzzle,
 }: {
   initialSeed?: string | undefined;
   initialDifficulty?: Difficulty | undefined;
+  initialPuzzle?: WordPathPuzzle | undefined;
 } = {}) {
   const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty ?? "medium");
   const [seed, setSeed] = useState<string>(() => initialSeed ?? makeRandomSeed());
-  const [puzzle, setPuzzle] = useState<WordPathPuzzle | null>(null);
+  const [puzzle, setPuzzle] = useState<WordPathPuzzle | null>(initialPuzzle ?? null);
 
   useEffect(() => {
+    if (initialPuzzle && puzzle === initialPuzzle) return;
     let cancelled = false;
     setPuzzle(null);
     generateWeaveAsync({ difficulty, seed }).then((p) => {
@@ -39,6 +42,7 @@ export function WeavePlay({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty, seed]);
 
   return (
