@@ -2,11 +2,14 @@ import { describe, it, expect } from "vitest";
 import type { PathPuzzle } from "@/engine/types";
 import {
   canExtend,
+  canExtendSolving,
+  checkpointsInOrder,
   extend,
   backtrackTo,
   initialPathState,
   isSolved,
   nextExpectedCheckpoint,
+  respectsCheckpointOrder,
   startCell,
   validate,
 } from "./rules";
@@ -69,20 +72,38 @@ describe("Trace rules — checkpoint ordering", () => {
     expect(nextExpectedCheckpoint(p, [0])).toBe(2);
     expect(nextExpectedCheckpoint(p, [0, 1, 2])).toBe(3);
   });
-  it("forbids entering a checkpoint out of order", () => {
-    // from [0,1] the only checkpoint reachable next is 2 (cell 2). Cell 3 is checkpoint 3 -> illegal.
-    // build a puzzle where 3 is adjacent to allow isolating the ordering rule:
+  it("ALLOWS entering a checkpoint out of order (movement is not restricted)", () => {
+    // 1x3: checkpoints 1@0, 3@1, 2@2. From start [0], cell 1 holds checkpoint 3
+    // (expected is 2) — the move is still legal; ordering is a win condition.
     const p2: PathPuzzle = {
       game: "path",
       meta: { id: "cp2", game: "path", difficulty: "easy", rows: 1, cols: 3, generatorVersion: 0, formatVersion: 1 },
       checkpoints: { 0: 1, 1: 3, 2: 2 },
       walls: [],
     };
-    // from start [0], cell 1 holds checkpoint 3 but expected is 2 -> rejected
-    expect(canExtend(p2, [0], 1)).toEqual({ ok: false, reason: "checkpoint-out-of-order" });
+    expect(canExtend(p2, [0], 1)).toEqual({ ok: true });
+    // ...but the solver will not treat that early entry as valid:
+    expect(canExtendSolving(p2, [0], 1)).toBe(false);
+    expect(respectsCheckpointOrder(p2, [0], 1)).toBe(false);
   });
   it("allows entering the checkpoint that matches the expected number", () => {
     expect(canExtend(p, [0, 1], 2)).toEqual({ ok: true });
+    expect(canExtendSolving(p, [0, 1], 2)).toBe(true);
+  });
+
+  it("a full path with out-of-order checkpoints is NOT solved", () => {
+    // 1x3, checkpoints 1@0, 2@1, 3@2. Path 0,1,2 is in order -> solved.
+    const q: PathPuzzle = {
+      game: "path",
+      meta: { id: "q", game: "path", difficulty: "easy", rows: 1, cols: 3, generatorVersion: 0, formatVersion: 1 },
+      checkpoints: { 0: 1, 1: 3, 2: 2 },
+      walls: [],
+    };
+    // covers all 3 cells but order is 1,3,2 -> not solved
+    expect(checkpointsInOrder(q, [0, 1, 2])).toBe(false);
+    expect(isSolved(q, [0, 1, 2])).toBe(false);
+    expect(validate(q, [0, 1, 2]).solved).toBe(false);
+    expect(validate(q, [0, 1, 2]).message).toMatch(/out of order/i);
   });
 });
 
