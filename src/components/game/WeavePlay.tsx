@@ -19,9 +19,15 @@ const DIFFICULTIES: { key: Difficulty; label: string }[] = [
 
 /** Weave play surface (Milestone 8): procedurally generated boards via the
  *  dictionary-driven Web-Worker generator, with hints from the word solver. */
-export function WeavePlay() {
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-  const [seed, setSeed] = useState<string>(() => makeRandomSeed());
+export function WeavePlay({
+  initialSeed,
+  initialDifficulty,
+}: {
+  initialSeed?: string | undefined;
+  initialDifficulty?: Difficulty | undefined;
+} = {}) {
+  const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty ?? "medium");
+  const [seed, setSeed] = useState<string>(() => initialSeed ?? makeRandomSeed());
   const [puzzle, setPuzzle] = useState<WordPathPuzzle | null>(null);
 
   useEffect(() => {

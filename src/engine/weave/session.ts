@@ -79,6 +79,7 @@ export function createWeaveSession(puzzle: WordPathPuzzle) {
         difficulty: s.puzzle.meta.difficulty,
         completedAt: Date.now(),
         metrics,
+        seed: s.puzzle.meta.seed,
       });
     };
 

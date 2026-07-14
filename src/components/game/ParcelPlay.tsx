@@ -18,9 +18,15 @@ const DIFFICULTIES: { key: Difficulty; label: string }[] = [
 
 /** Parcel play surface (Milestone 6): procedurally generated, uniquely-solvable
  *  boards via the Web-Worker generator, with hints powered by the exact-cover solver. */
-export function ParcelPlay() {
-  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
-  const [seed, setSeed] = useState<string>(() => makeRandomSeed());
+export function ParcelPlay({
+  initialSeed,
+  initialDifficulty,
+}: {
+  initialSeed?: string | undefined;
+  initialDifficulty?: Difficulty | undefined;
+} = {}) {
+  const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty ?? "easy");
+  const [seed, setSeed] = useState<string>(() => initialSeed ?? makeRandomSeed());
   const [puzzle, setPuzzle] = useState<PartitionPuzzle | null>(null);
 
   useEffect(() => {

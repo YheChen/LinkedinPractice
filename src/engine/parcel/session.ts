@@ -84,6 +84,7 @@ export function createParcelSession(puzzle: PartitionPuzzle) {
         difficulty: s.puzzle.meta.difficulty,
         completedAt: Date.now(),
         metrics,
+        seed: s.puzzle.meta.seed,
       });
     };
 

@@ -21,9 +21,15 @@ const DIFFICULTIES: { key: Difficulty; label: string }[] = [
  * boards via the Web-Worker generator. Difficulty selector, endless "new puzzle",
  * and the reproducible seed are exposed. Generation is async with a skeleton.
  */
-export function TracePlay() {
-  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
-  const [seed, setSeed] = useState<string>(() => makeRandomSeed());
+export function TracePlay({
+  initialSeed,
+  initialDifficulty,
+}: {
+  initialSeed?: string | undefined;
+  initialDifficulty?: Difficulty | undefined;
+} = {}) {
+  const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty ?? "easy");
+  const [seed, setSeed] = useState<string>(() => initialSeed ?? makeRandomSeed());
   const [puzzle, setPuzzle] = useState<PathPuzzle | null>(null);
 
   useEffect(() => {
