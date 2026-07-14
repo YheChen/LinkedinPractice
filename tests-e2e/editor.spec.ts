@@ -16,6 +16,26 @@ test("Editor: generate → Play link opens a shared board", async ({ page }) => 
   await expect(page.getByRole("application", { name: /Trace grid/i })).toBeVisible({ timeout: 15_000 });
 });
 
+test("Editor: free-form Build mode makes a unique, playable Trace board", async ({ page }) => {
+  await page.goto("/editor");
+  await page.getByRole("tab", { name: /Build \(Trace\)/i }).click();
+  await page.getByRole("button", { name: "4×4" }).click();
+
+  // Fill a 4×4 snake path — every cell numbered forces a single solution.
+  const snake = [0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11, 15, 14, 13, 12];
+  for (const i of snake) {
+    await page.locator(`button[aria-label^="Cell ${i}, "]`).click();
+  }
+
+  await expect(page.getByText(/Unique solution/i)).toBeVisible();
+
+  const play = page.getByRole("link", { name: "Play" });
+  await expect(play).toBeVisible();
+  await play.click();
+  await expect(page).toHaveURL(/\/play\/trace\?p=/);
+  await expect(page.getByRole("application", { name: /Trace grid/i })).toBeVisible({ timeout: 15_000 });
+});
+
 test("Editor: import rejects invalid JSON with an error", async ({ page }) => {
   await page.goto("/editor");
   await page.getByPlaceholder('{"game":"path", ...}').fill("{ not valid");
