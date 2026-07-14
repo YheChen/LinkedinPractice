@@ -51,6 +51,7 @@ export const wordPathPuzzleSchema = z.object({
   meta: puzzleMetaSchema,
   letters: z.array(z.string().length(1).nullable()).max(MAX_DIM * MAX_DIM),
   wordLengths: z.array(z.number().int().min(2).max(MAX_DIM * MAX_DIM)).min(1),
+  words: z.array(z.string().min(2).max(MAX_DIM * MAX_DIM)).min(1),
 });
 
 export const puzzleDefinitionSchema = z.discriminatedUnion("game", [
@@ -69,8 +70,16 @@ export function validateDefinitionInvariants(def: PuzzleDefinitionInput): string
   const errs: string[] = [];
   const { rows, cols } = def.meta;
   const size = rows * cols;
-  if (def.game === "wordpath" && def.letters.length !== size) {
-    errs.push(`letters length ${def.letters.length} != rows*cols ${size}`);
+  if (def.game === "wordpath") {
+    if (def.letters.length !== size) {
+      errs.push(`letters length ${def.letters.length} != rows*cols ${size}`);
+    }
+    const nonNull = def.letters.filter((l) => l !== null).length;
+    const wordSum = def.words.reduce((a, w) => a + w.length, 0);
+    if (nonNull !== wordSum) errs.push(`letter count ${nonNull} != sum of word lengths ${wordSum}`);
+    const lenA = [...def.wordLengths].sort((a, b) => a - b).join(",");
+    const lenB = def.words.map((w) => w.length).sort((a, b) => a - b).join(",");
+    if (lenA !== lenB) errs.push("wordLengths do not match words");
   }
   if (def.game === "partition") {
     const seen = new Set<number>();
