@@ -1,0 +1,144 @@
+"use client";
+
+/**
+ * Local-first persistence (SPEC §7 — NO DATABASE). Everything a player accrues
+ * lives on-device behind this one interface, so a cloud adapter (Supabase/Neon)
+ * can later be dropped in without touching the engine or UI.
+ *
+ * localStorage is used for small records (best times, stats, resumable
+ * attempts). It is synchronous, but the interface is async so a future
+ * IndexedDB/remote adapter fits the same shape.
+ */
+import type { AttemptMetrics, Difficulty, GameId } from "@/engine/types";
+
+export interface AttemptSnapshot {
+  puzzleId: string;
+  /** game-specific player state (validated by the caller before use) */
+  player: unknown;
+  metrics: AttemptMetrics;
+  timer: { accumulatedMs: number; wasRunning: boolean };
+  updatedAt: number;
+}
+
+export interface CompletedRecord {
+  puzzleId: string;
+  game: GameId;
+  difficulty: Difficulty;
+  completedAt: number;
+  metrics: AttemptMetrics;
+}
+
+export interface StatRecord {
+  game: GameId;
+  played: number;
+  completed: number;
+  currentStreak: number;
+  maxStreak: number;
+  lastCompletedDay?: string; // YYYY-MM-DD, for streak math
+}
+
+export interface Storage {
+  getProgress(puzzleId: string): Promise<AttemptSnapshot | null>;
+  saveProgress(snapshot: AttemptSnapshot): Promise<void>;
+  clearProgress(puzzleId: string): Promise<void>;
+  recordCompletion(rec: CompletedRecord): Promise<void>;
+  getBest(game: GameId, difficulty: Difficulty): Promise<number | null>;
+  getStats(game: GameId): Promise<StatRecord>;
+}
+
+const KEYS = {
+  progress: (id: string) => `gridwright.progress.${id}`,
+  best: (g: string, d: string) => `gridwright.best.${g}.${d}`,
+  stats: (g: string) => `gridwright.stats.${g}`,
+};
+
+function readJSON<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeJSON(key: string, value: unknown): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* quota / private mode — degrade to in-memory only */
+  }
+}
+
+function removeKey(key: string): void {
+  try {
+    window.localStorage?.removeItem?.(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+export class LocalStorageAdapter implements Storage {
+  async getProgress(puzzleId: string): Promise<AttemptSnapshot | null> {
+    return readJSON<AttemptSnapshot>(KEYS.progress(puzzleId));
+  }
+
+  async saveProgress(snapshot: AttemptSnapshot): Promise<void> {
+    writeJSON(KEYS.progress(snapshot.puzzleId), snapshot);
+  }
+
+  async clearProgress(puzzleId: string): Promise<void> {
+    if (typeof window === "undefined") return;
+    removeKey(KEYS.progress(puzzleId));
+  }
+
+  async recordCompletion(rec: CompletedRecord): Promise<void> {
+    // Best time (lower is better).
+    const bestKey = KEYS.best(rec.game, rec.difficulty);
+    const prevBest = readJSON<number>(bestKey);
+    if (prevBest === null || rec.metrics.elapsedMs < prevBest) {
+      writeJSON(bestKey, rec.metrics.elapsedMs);
+    }
+    // Stats + streak.
+    const stats = await this.getStats(rec.game);
+    const day = new Date(rec.completedAt).toISOString().slice(0, 10);
+    let currentStreak = stats.currentStreak;
+    if (stats.lastCompletedDay === day) {
+      // already counted today; leave streak
+    } else {
+      const prevDay = stats.lastCompletedDay;
+      const yesterday = new Date(rec.completedAt - 86_400_000).toISOString().slice(0, 10);
+      currentStreak = prevDay === yesterday ? stats.currentStreak + 1 : 1;
+    }
+    const next: StatRecord = {
+      game: rec.game,
+      played: stats.played + 1,
+      completed: stats.completed + 1,
+      currentStreak,
+      maxStreak: Math.max(stats.maxStreak, currentStreak),
+      lastCompletedDay: day,
+    };
+    writeJSON(KEYS.stats(rec.game), next);
+    await this.clearProgress(rec.puzzleId);
+  }
+
+  async getBest(game: GameId, difficulty: Difficulty): Promise<number | null> {
+    return readJSON<number>(KEYS.best(game, difficulty));
+  }
+
+  async getStats(game: GameId): Promise<StatRecord> {
+    return (
+      readJSON<StatRecord>(KEYS.stats(game)) ?? {
+        game,
+        played: 0,
+        completed: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+      }
+    );
+  }
+}
+
+/** Singleton used across the app. */
+export const storage: Storage = new LocalStorageAdapter();

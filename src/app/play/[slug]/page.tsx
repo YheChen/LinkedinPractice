@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { gameBySlug } from "@/lib/games";
 import { Placeholder } from "@/components/shell/Placeholder";
+import { TracePlay } from "@/components/game/TracePlay";
 
 const MILESTONE: Record<string, string> = {
-  trace: "Milestone 3 · Trace MVP",
   parcel: "Milestone 5 · Parcel",
   weave: "Milestone 7 · Weave",
 };
@@ -13,8 +13,10 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
   const game = gameBySlug(slug);
   if (!game) notFound();
 
+  if (slug === "trace") return <TracePlay />;
+
   return (
-    <Placeholder title={`${game.name}`} milestone={MILESTONE[slug] ?? "Upcoming"}>
+    <Placeholder title={game.name} milestone={MILESTONE[slug] ?? "Upcoming"}>
       <p className="mb-3">{game.rules}</p>
       <p>
         The shared board shell, pointer-input system, timer, and undo/redo history are already in
