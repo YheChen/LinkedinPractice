@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens. Colours are stored as raw "R G B" triples so Tailwind's
+ * rgb(var(--token) / <alpha>) bridge can apply opacity. Theme = a single
+ * data-theme swap on <html>; no component re-render needed.
+ *
+ * Original palette (not derived from any LinkedIn asset). Accent hues are
+ * chosen to stay distinguishable under the common colour-vision deficiencies,
+ * and every stateful colour is paired with a non-colour cue (icon/label/shape)
+ * elsewhere in the UI — no rule is communicated by colour alone.
+ */
+:root,
+[data-theme="light"] {
+  --c-bg: 247 248 250;
+  --c-surface: 255 255 255;
+  --c-surface-2: 241 243 247;
+  --c-line: 222 226 232;
+  --c-ink: 22 27 34;
+  --c-ink-muted: 96 104 116;
+  --c-brand: 74 92 232; /* indigo */
+  --c-brand-ink: 255 255 255;
+  --c-path: 34 122 204; /* blue */
+  --c-tile: 176 92 232; /* violet */
+  --c-word: 20 160 133; /* teal */
+  --c-ok: 26 152 96;
+  --c-warn: 200 128 20;
+  --c-danger: 214 64 74;
+
+  --radius-card: 16px;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  --c-bg: 14 17 22;
+  --c-surface: 22 27 34;
+  --c-surface-2: 30 36 45;
+  --c-line: 44 52 63;
+  --c-ink: 233 237 243;
+  --c-ink-muted: 148 158 170;
+  --c-brand: 122 138 255;
+  --c-brand-ink: 12 15 20;
+  --c-path: 96 168 255;
+  --c-tile: 200 148 255;
+  --c-word: 66 200 172;
+  --c-ok: 76 196 140;
+  --c-warn: 232 172 72;
+  --c-danger: 246 108 116;
+}
+
+/* High-contrast overrides layer on top of whichever base theme is active. */
+[data-contrast="high"] {
+  --c-line: 0 0 0;
+  --c-ink: 0 0 0;
+  --c-ink-muted: 20 20 20;
+}
+[data-theme="dark"][data-contrast="high"] {
+  --c-line: 255 255 255;
+  --c-ink: 255 255 255;
+  --c-ink-muted: 235 235 235;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-ink));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* Discourage browser overscroll/pull-to-refresh interfering with play. */
+  overscroll-behavior-y: contain;
+}
+
+/* Respect reduced-motion globally; games also read the setting explicitly. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Always-visible, high-contrast focus ring for keyboard users. */
+:focus-visible {
+  outline: 3px solid rgb(var(--c-brand));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Screen-reader-only utility. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

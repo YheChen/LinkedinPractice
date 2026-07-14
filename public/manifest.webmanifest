@@ -1,0 +1,17 @@
+{
+  "name": "Gridwright — daily logic & word puzzles",
+  "short_name": "Gridwright",
+  "description": "Original path, rectangle-partition, and word-path puzzles with unlimited play, daily challenges, and an offline-capable archive.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
