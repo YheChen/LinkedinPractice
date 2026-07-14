@@ -68,6 +68,10 @@ export interface TraceSessionState {
   redo: () => void;
   restart: () => void;
   hint: () => void;
+
+  // persistence (autosave/resume)
+  snapshot: () => import("@/lib/storage").AttemptSnapshot | null;
+  restore: (snap: import("@/lib/storage").AttemptSnapshot) => void;
 }
 
 function makeInitial(puzzle: PathPuzzle) {
@@ -227,6 +231,32 @@ export function createTraceSession(puzzle: PathPuzzle) {
           ...recompute(result.path),
         });
         finalizeIfSolved(result.path);
+      },
+
+      snapshot: () => {
+        const s = get();
+        if (s.solved || s.live.length <= 1) return null;
+        return {
+          puzzleId: s.puzzle.meta.id,
+          player: s.live,
+          metrics: s.metrics,
+          timer: { accumulatedMs: s.stopwatch.elapsedMs(), wasRunning: false },
+          updatedAt: Date.now(),
+        };
+      },
+
+      restore: (snap) => {
+        const live = snap.player as number[];
+        if (!Array.isArray(live) || live.length === 0) return;
+        set({
+          live,
+          history: createHistory(live),
+          metrics: { ...EMPTY_METRICS, ...snap.metrics },
+          stopwatch: new Stopwatch({ accumulatedMs: snap.timer.accumulatedMs, runningSince: null }),
+          running: false,
+          finalized: false,
+          ...recompute(live), // sets solved + message
+        });
       },
     };
   });

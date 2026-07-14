@@ -58,6 +58,9 @@ export interface WeaveSessionState {
   redo: () => void;
   restart: () => void;
   hint: () => void;
+
+  snapshot: () => import("@/lib/storage").AttemptSnapshot | null;
+  restore: (snap: import("@/lib/storage").AttemptSnapshot) => void;
 }
 
 export function createWeaveSession(puzzle: WordPathPuzzle) {
@@ -215,6 +218,35 @@ export function createWeaveSession(puzzle: WordPathPuzzle) {
             return;
           }
         }
+      },
+
+      snapshot: () => {
+        const s = get();
+        if (s.solvedAll || s.solved.length === 0) return null;
+        return {
+          puzzleId: s.puzzle.meta.id,
+          player: s.solved,
+          metrics: s.metrics,
+          timer: { accumulatedMs: s.stopwatch.elapsedMs(), wasRunning: false },
+          updatedAt: Date.now(),
+        };
+      },
+
+      restore: (snap) => {
+        const solved = snap.player as number[][];
+        if (!Array.isArray(solved) || solved.length === 0) return;
+        set({
+          solved,
+          active: [],
+          history: createHistory(solved),
+          metrics: { ...EMPTY_METRICS, ...snap.metrics },
+          stopwatch: new Stopwatch({ accumulatedMs: snap.timer.accumulatedMs, runningSince: null }),
+          running: false,
+          finalized: false,
+          dragging: false,
+          lastResult: null,
+          ...recompute(solved),
+        });
       },
     };
   });

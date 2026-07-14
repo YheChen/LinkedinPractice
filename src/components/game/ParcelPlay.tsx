@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Difficulty, PartitionPuzzle } from "@/engine/types";
 import { createParcelSession, type ParcelStore } from "@/engine/parcel/session";
+import { useResume } from "@/engine/session/useResume";
 import { makeRandomSeed } from "@/engine/trace/generate";
 import { generateParcelAsync } from "@/workers/parcelClient";
 import { ParcelBoard } from "./ParcelBoard";
@@ -100,6 +101,7 @@ export function ParcelPlay({
 
 function ParcelGame({ puzzle, onNext }: { puzzle: PartitionPuzzle; onNext: () => void }) {
   const store: ParcelStore = useMemo(() => createParcelSession(puzzle), [puzzle]);
+  useResume(store, puzzle.meta.id);
 
   const running = store((s) => s.running);
   const stopwatch = store((s) => s.stopwatch);

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Difficulty, PathPuzzle } from "@/engine/types";
 import { createTraceSession, type TraceStore } from "@/engine/trace/session";
+import { useResume } from "@/engine/session/useResume";
 import { makeRandomSeed } from "@/engine/trace/generate";
 import { generateTraceAsync } from "@/workers/traceClient";
 import { TraceBoard } from "./TraceBoard";
@@ -106,6 +107,7 @@ function BoardSkeleton() {
 /** Inner component: owns the session store; only mounted once a puzzle exists. */
 function TraceGame({ puzzle, onNext }: { puzzle: PathPuzzle; onNext: () => void }) {
   const store: TraceStore = useMemo(() => createTraceSession(puzzle), [puzzle]);
+  useResume(store, puzzle.meta.id);
 
   const running = store((s) => s.running);
   const stopwatch = store((s) => s.stopwatch);
