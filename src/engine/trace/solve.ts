@@ -8,7 +8,38 @@
  */
 import type { PathPuzzle } from "@/engine/types";
 import { fromIndex, neighbors, toIndex } from "@/lib/grid";
-import { canExtend, startCell, totalCells } from "./rules";
+import { canExtend, hasWall, startCell, totalCells } from "./rules";
+
+/**
+ * Connectivity prune: from `head`, can every still-unvisited cell be reached
+ * (through unvisited cells, not crossing walls)? If some unvisited cell is
+ * stranded, no Hamiltonian completion exists — cut the branch. This is the
+ * single most important speed-up for counting solutions.
+ */
+function unvisitedReachable(
+  puzzle: PathPuzzle,
+  head: number,
+  visited: Set<number>,
+  remaining: number,
+): boolean {
+  const { rows, cols } = puzzle.meta;
+  const seen = new Set<number>([head]);
+  const stack = [head];
+  let reached = 0;
+  while (stack.length) {
+    const cur = stack.pop()!;
+    for (const nb of neighbors(fromIndex(cur, cols), rows, cols)) {
+      const cell = toIndex(nb, cols);
+      if (seen.has(cell)) continue;
+      if (hasWall(puzzle, cur, cell)) continue;
+      if (visited.has(cell)) continue;
+      seen.add(cell);
+      reached++;
+      stack.push(cell);
+    }
+  }
+  return reached >= remaining;
+}
 
 /** Complete `prefix` into a full solution, or null if none exists from here. */
 export function solveFrom(puzzle: PathPuzzle, prefix: readonly number[]): number[] | null {
@@ -20,6 +51,7 @@ export function solveFrom(puzzle: PathPuzzle, prefix: readonly number[]): number
   const dfs = (): boolean => {
     if (path.length === total) return true;
     const last = path[path.length - 1]!;
+    if (!unvisitedReachable(puzzle, last, visited, total - path.length)) return false;
     for (const nb of neighbors(fromIndex(last, cols), rows, cols)) {
       const cell = toIndex(nb, cols);
       if (visited.has(cell)) continue;
@@ -34,6 +66,49 @@ export function solveFrom(puzzle: PathPuzzle, prefix: readonly number[]): number
   };
 
   return dfs() ? path : null;
+}
+
+/**
+ * Count solutions, early-exiting at `cap` (default 2 — enough to decide
+ * uniqueness). Returns 0, 1, or `cap` (meaning "at least cap"). Uses the same
+ * connectivity prune as solveFrom.
+ */
+export function countSolutions(puzzle: PathPuzzle, cap = 2): number {
+  const total = totalCells(puzzle);
+  const { rows, cols } = puzzle.meta;
+  const start = startCell(puzzle);
+  const path: number[] = [start];
+  const visited = new Set<number>([start]);
+  let found = 0;
+
+  const dfs = () => {
+    if (found >= cap) return;
+    if (path.length === total) {
+      found++;
+      return;
+    }
+    const last = path[path.length - 1]!;
+    if (!unvisitedReachable(puzzle, last, visited, total - path.length)) return;
+    for (const nb of neighbors(fromIndex(last, cols), rows, cols)) {
+      const cell = toIndex(nb, cols);
+      if (visited.has(cell)) continue;
+      if (!canExtend(puzzle, path, cell).ok) continue;
+      path.push(cell);
+      visited.add(cell);
+      dfs();
+      path.pop();
+      visited.delete(cell);
+      if (found >= cap) return;
+    }
+  };
+
+  dfs();
+  return found;
+}
+
+/** True iff the puzzle has exactly one solution. */
+export function hasUniqueSolution(puzzle: PathPuzzle): boolean {
+  return countSolutions(puzzle, 2) === 1;
 }
 
 export interface HintResult {

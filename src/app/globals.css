@@ -22,10 +22,11 @@
   --c-ink-muted: 96 104 116;
   --c-brand: 74 92 232; /* indigo */
   --c-brand-ink: 255 255 255;
-  --c-path: 34 122 204; /* blue */
-  --c-tile: 176 92 232; /* violet */
-  --c-word: 20 160 133; /* teal */
-  --c-ok: 26 152 96;
+  /* Accents double as text colour on white, so they meet WCAG AA (>=4.5:1). */
+  --c-path: 21 101 192; /* blue */
+  --c-tile: 123 61 178; /* violet */
+  --c-word: 15 118 110; /* teal */
+  --c-ok: 21 128 82;
   --c-warn: 200 128 20;
   --c-danger: 214 64 74;
 
@@ -97,6 +98,20 @@ body {
   outline: 3px solid rgb(var(--c-brand));
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* Print-friendly mode: hide app chrome, show only the printable puzzle. */
+@media print {
+  .no-print,
+  header:not(.printable header),
+  nav,
+  footer {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+  }
 }
 
 /* Screen-reader-only utility. */

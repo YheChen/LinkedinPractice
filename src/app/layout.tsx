@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeApplier } from "@/components/shell/ThemeApplier";
+import { ServiceWorkerRegister } from "@/components/shell/ServiceWorkerRegister";
 import { TopBar } from "@/components/shell/TopBar";
 import { BottomNav } from "@/components/shell/BottomNav";
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh">
         <ThemeApplier />
+        <ServiceWorkerRegister />
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:bg-brand focus:px-3 focus:py-2 focus:text-brand-ink">
           Skip to content
         </a>

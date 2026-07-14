@@ -1,28 +1,111 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { createTraceSession } from "@/engine/trace/session";
-import { TRACE_5x5_EASY, TRACE_6x6_MEDIUM } from "@/engine/trace/fixtures";
+import { useEffect, useMemo, useState } from "react";
+import type { Difficulty, PathPuzzle } from "@/engine/types";
+import { createTraceSession, type TraceStore } from "@/engine/trace/session";
+import { makeRandomSeed } from "@/engine/trace/generate";
+import { generateTraceAsync } from "@/workers/traceClient";
 import { TraceBoard } from "./TraceBoard";
 import { Timer } from "./Timer";
 import { formatDuration } from "@/lib/timer";
 
-const FIXTURES = [
-  { key: "easy", label: "Easy · 5×5", fixture: TRACE_5x5_EASY },
-  { key: "medium", label: "Medium · 6×6", fixture: TRACE_6x6_MEDIUM },
-] as const;
+const DIFFICULTIES: { key: Difficulty; label: string }[] = [
+  { key: "easy", label: "Easy" },
+  { key: "medium", label: "Medium" },
+  { key: "hard", label: "Hard" },
+  { key: "expert", label: "Expert" },
+];
 
 /**
- * Milestone-3 Trace play surface. Picks a hand-authored fixture (the generator
- * arrives in M4), mounts the board, and renders the timer + control bar +
- * completion modal. Each fixture gets its own session instance.
+ * Trace play surface (Milestone 4): procedurally generated, uniquely-solvable
+ * boards via the Web-Worker generator. Difficulty selector, endless "new puzzle",
+ * and the reproducible seed are exposed. Generation is async with a skeleton.
  */
-export function TracePlay() {
-  const [fixtureKey, setFixtureKey] = useState<(typeof FIXTURES)[number]["key"]>("easy");
-  const fixture = FIXTURES.find((f) => f.key === fixtureKey)!.fixture;
+export function TracePlay({
+  initialSeed,
+  initialDifficulty,
+  initialPuzzle,
+}: {
+  initialSeed?: string | undefined;
+  initialDifficulty?: Difficulty | undefined;
+  initialPuzzle?: PathPuzzle | undefined;
+} = {}) {
+  const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty ?? "easy");
+  const [seed, setSeed] = useState<string>(() => initialSeed ?? makeRandomSeed());
+  const [puzzle, setPuzzle] = useState<PathPuzzle | null>(initialPuzzle ?? null);
 
-  // New session whenever the puzzle changes.
-  const store = useMemo(() => createTraceSession(fixture.puzzle), [fixture.puzzle]);
+  useEffect(() => {
+    // Skip generation while the imported/shared puzzle is the active one.
+    if (initialPuzzle && puzzle === initialPuzzle) return;
+    let cancelled = false;
+    setPuzzle(null);
+    generateTraceAsync({ difficulty, seed }).then((p) => {
+      if (!cancelled) setPuzzle(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [difficulty, seed]);
+
+  return (
+    <div className="mx-auto w-full max-w-xl">
+      <header className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Trace</h1>
+          <p className="text-sm text-ink-muted">One line, every cell, numbers in order.</p>
+        </div>
+        <button
+          onClick={() => setSeed(makeRandomSeed())}
+          className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+        >
+          New puzzle
+        </button>
+      </header>
+
+      <div className="mb-3 flex flex-wrap gap-1" role="radiogroup" aria-label="Difficulty">
+        {DIFFICULTIES.map((d) => (
+          <button
+            key={d.key}
+            role="radio"
+            aria-checked={difficulty === d.key}
+            onClick={() => setDifficulty(d.key)}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+              difficulty === d.key ? "border-brand bg-brand text-brand-ink" : "border-line"
+            }`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {puzzle ? (
+        <TraceGame key={puzzle.meta.id} puzzle={puzzle} onNext={() => setSeed(makeRandomSeed())} />
+      ) : (
+        <BoardSkeleton />
+      )}
+
+      <p className="mt-4 text-center text-xs text-ink-muted">
+        Seed: <code className="rounded bg-surface-2 px-1.5 py-0.5">{seed}</code>
+      </p>
+    </div>
+  );
+}
+
+function BoardSkeleton() {
+  return (
+    <div
+      className="mx-auto aspect-square w-full animate-pulse rounded-card border border-line bg-surface-2"
+      style={{ maxWidth: "min(92vw, 520px)" }}
+      aria-busy="true"
+      aria-label="Generating puzzle"
+    />
+  );
+}
+
+/** Inner component: owns the session store; only mounted once a puzzle exists. */
+function TraceGame({ puzzle, onNext }: { puzzle: PathPuzzle; onNext: () => void }) {
+  const store: TraceStore = useMemo(() => createTraceSession(puzzle), [puzzle]);
 
   const running = store((s) => s.running);
   const stopwatch = store((s) => s.stopwatch);
@@ -36,38 +119,18 @@ export function TracePlay() {
   const hint = store((s) => s.hint);
 
   return (
-    <div className="mx-auto w-full max-w-xl">
-      <header className="mb-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Trace</h1>
-          <p className="text-sm text-ink-muted">One line, every cell, numbers in order.</p>
-        </div>
+    <div>
+      <div className="mb-3 flex items-center justify-end">
         <div className="rounded-lg border border-line bg-surface px-3 py-2 text-lg">
           <span className="sr-only">Timer: </span>
           <Timer stopwatch={stopwatch} running={running} />
         </div>
-      </header>
-
-      <div className="mb-3 flex gap-1" role="radiogroup" aria-label="Difficulty">
-        {FIXTURES.map((f) => (
-          <button
-            key={f.key}
-            role="radio"
-            aria-checked={fixtureKey === f.key}
-            onClick={() => setFixtureKey(f.key)}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
-              fixtureKey === f.key ? "border-brand bg-brand text-brand-ink" : "border-line"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
       </div>
 
       <TraceBoard store={store} />
 
       <div className="mt-4 grid grid-cols-4 gap-2">
-        <ControlButton label="Undo" hint="⌫" onClick={undo} disabled={!canUndo}>
+        <ControlButton label="Undo" hint="Backspace" onClick={undo} disabled={!canUndo}>
           ↶
         </ControlButton>
         <ControlButton label="Redo" onClick={redo} disabled={!canRedo}>
@@ -93,6 +156,7 @@ export function TracePlay() {
           backtracks={metrics.backtracks}
           hintsUsed={metrics.hintsUsed}
           onPlayAgain={restart}
+          onNext={onNext}
         />
       )}
     </div>
@@ -142,11 +206,13 @@ function CompletionModal({
   backtracks,
   hintsUsed,
   onPlayAgain,
+  onNext,
 }: {
   elapsedMs: number;
   backtracks: number;
   hintsUsed: number;
   onPlayAgain: () => void;
+  onNext: () => void;
 }) {
   return (
     <div
@@ -166,13 +232,21 @@ function CompletionModal({
           {backtracks} backtrack{backtracks === 1 ? "" : "s"} · {hintsUsed} hint
           {hintsUsed === 1 ? "" : "s"}
         </p>
-        <button
-          onClick={onPlayAgain}
-          autoFocus
-          className="mt-4 w-full rounded-lg bg-brand px-4 py-2.5 font-semibold text-brand-ink"
-        >
-          Play again
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onPlayAgain}
+            className="flex-1 rounded-lg border border-line px-4 py-2.5 font-semibold hover:bg-surface-2"
+          >
+            Replay
+          </button>
+          <button
+            onClick={onNext}
+            autoFocus
+            className="flex-1 rounded-lg bg-brand px-4 py-2.5 font-semibold text-brand-ink"
+          >
+            New puzzle
+          </button>
+        </div>
       </div>
     </div>
   );

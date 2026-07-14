@@ -107,6 +107,7 @@ export function createTraceSession(puzzle: PathPuzzle) {
         difficulty: s.puzzle.meta.difficulty,
         completedAt: Date.now(),
         metrics,
+        seed: s.puzzle.meta.seed,
       });
     };
 

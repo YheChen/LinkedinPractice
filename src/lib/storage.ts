@@ -26,6 +26,13 @@ export interface CompletedRecord {
   difficulty: Difficulty;
   completedAt: number;
   metrics: AttemptMetrics;
+  /** the puzzle's seed, if any — enables archive/daily completion lookup by seed */
+  seed?: string | undefined;
+}
+
+/** Stable key for completion lookup that does not require regenerating a puzzle. */
+export function doneKey(game: GameId, difficulty: Difficulty, seed: string): string {
+  return `${game}|${difficulty}|${seed}`;
 }
 
 export interface StatRecord {
@@ -44,34 +51,57 @@ export interface Storage {
   recordCompletion(rec: CompletedRecord): Promise<void>;
   getBest(game: GameId, difficulty: Difficulty): Promise<number | null>;
   getStats(game: GameId): Promise<StatRecord>;
+  /** completion lookup keyed by doneKey(game, difficulty, seed) */
+  isDone(key: string): Promise<boolean>;
+  listDone(): Promise<string[]>;
 }
 
 const KEYS = {
   progress: (id: string) => `gridwright.progress.${id}`,
   best: (g: string, d: string) => `gridwright.best.${g}.${d}`,
   stats: (g: string) => `gridwright.stats.${g}`,
+  done: "gridwright.done",
 };
 
+/**
+ * In-memory mirror. Guarantees the adapter works within a session even when
+ * localStorage is unavailable, a partial stub (some test envs), private-mode, or
+ * over quota. Real browsers still persist via localStorage; the mirror just
+ * backstops reads when a write didn't round-trip.
+ */
+const mem = new Map<string, string>();
+
 function readJSON<T>(key: string): T | null {
-  if (typeof window === "undefined") return null;
+  let raw: string | null = null;
+  if (typeof window !== "undefined") {
+    try {
+      raw = window.localStorage.getItem(key);
+    } catch {
+      raw = null;
+    }
+  }
+  if (raw == null) raw = mem.get(key) ?? null;
+  if (raw == null) return null;
   try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
+    return JSON.parse(raw) as T;
   } catch {
     return null;
   }
 }
 
 function writeJSON(key: string, value: unknown): void {
+  const json = JSON.stringify(value);
+  mem.set(key, json);
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    window.localStorage.setItem(key, json);
   } catch {
-    /* quota / private mode — degrade to in-memory only */
+    /* quota / private mode — the in-memory mirror still holds it this session */
   }
 }
 
 function removeKey(key: string): void {
+  mem.delete(key);
   try {
     window.localStorage?.removeItem?.(key);
   } catch {
@@ -120,7 +150,23 @@ export class LocalStorageAdapter implements Storage {
       lastCompletedDay: day,
     };
     writeJSON(KEYS.stats(rec.game), next);
+
+    // Seed-keyed completion set (for daily/archive badges).
+    if (rec.seed) {
+      const set = new Set(readJSON<string[]>(KEYS.done) ?? []);
+      set.add(doneKey(rec.game, rec.difficulty, rec.seed));
+      writeJSON(KEYS.done, [...set]);
+    }
+
     await this.clearProgress(rec.puzzleId);
+  }
+
+  async isDone(key: string): Promise<boolean> {
+    return (readJSON<string[]>(KEYS.done) ?? []).includes(key);
+  }
+
+  async listDone(): Promise<string[]> {
+    return readJSON<string[]>(KEYS.done) ?? [];
   }
 
   async getBest(game: GameId, difficulty: Difficulty): Promise<number | null> {

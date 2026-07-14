@@ -69,6 +69,11 @@ export interface WordPathPuzzle {
   letters: (string | null)[];
   /** lengths of the hidden words, shown to the player (words themselves hidden) */
   wordLengths: number[];
+  /**
+   * The hidden target words. Needed by the engine to validate a submitted trace;
+   * NEVER shown in the UI (the player only sees `wordLengths`). Stored uppercased.
+   */
+  words: string[];
 }
 
 export type PuzzleDefinition = PathPuzzle | PartitionPuzzle | WordPathPuzzle;
