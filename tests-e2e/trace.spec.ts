@@ -1,18 +1,18 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Trace end-to-end. Boards are now procedurally generated (random seed per
+ * Zip end-to-end. Boards are now procedurally generated (random seed per
  * load), so we can't hardcode a solution key-sequence. Instead we complete the
  * puzzle by repeatedly pressing Hint — each Hint reveals exactly one correct
  * step, so this deterministically finishes ANY generated board and exercises
  * the full generate → play → complete pipeline.
  */
-test("Trace: generated puzzle can be completed (via hints) and shows the solved modal", async ({
+test("Zip: generated puzzle can be completed (via hints) and shows the solved modal", async ({
   page,
 }) => {
   await page.goto("/play/trace");
 
-  const board = page.getByRole("application", { name: /Trace grid/i });
+  const board = page.getByRole("application", { name: /Zip grid/i });
   await expect(board).toBeVisible({ timeout: 15_000 }); // waits for worker generation
 
   const hint = page.getByRole("button", { name: /Hint/i });
@@ -28,9 +28,9 @@ test("Trace: generated puzzle can be completed (via hints) and shows the solved 
   await expect(dialog).toContainText(/Solved in/i);
 });
 
-test("Trace: a keyboard move extends the line", async ({ page }) => {
+test("Zip: a keyboard move extends the line", async ({ page }) => {
   await page.goto("/play/trace");
-  const board = page.getByRole("application", { name: /Trace grid/i });
+  const board = page.getByRole("application", { name: /Zip grid/i });
   await expect(board).toBeVisible({ timeout: 15_000 });
   await board.focus();
 
@@ -50,9 +50,9 @@ test("Trace: a keyboard move extends the line", async ({ page }) => {
   expect(extended).toBe(true);
 });
 
-test("Trace: board fits the viewport width", async ({ page }) => {
+test("Zip: board fits the viewport width", async ({ page }) => {
   await page.goto("/play/trace");
-  const board = page.getByRole("application", { name: /Trace grid/i });
+  const board = page.getByRole("application", { name: /Zip grid/i });
   await expect(board).toBeVisible({ timeout: 15_000 });
 
   const box = await board.boundingBox();

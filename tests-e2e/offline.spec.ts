@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
  * worker, the app must still load and play with the network cut. Puzzles are
  * generated in-browser, so a cached shell is enough to keep playing.
  */
-test("app shell loads and Trace is playable offline", async ({ page, context }) => {
+test("app shell loads and Zip is playable offline", async ({ page, context }) => {
   await page.goto("/");
   // Wait for the service worker to control the page.
   await page.waitForFunction(async () => {
@@ -16,12 +16,12 @@ test("app shell loads and Trace is playable offline", async ({ page, context }) 
 
   // Warm the play route cache while still online.
   await page.goto("/play/trace");
-  await expect(page.getByRole("application", { name: /Trace grid/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("application", { name: /Zip grid/i })).toBeVisible({ timeout: 15_000 });
 
   // Cut the network and reload — should still work from cache + client generation.
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole("application", { name: /Trace grid/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("application", { name: /Zip grid/i })).toBeVisible({ timeout: 15_000 });
 
   await context.setOffline(false);
 });

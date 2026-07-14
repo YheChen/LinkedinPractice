@@ -49,7 +49,7 @@ export function ParcelPlay({
     <div className="mx-auto w-full max-w-xl">
       <header className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Parcel</h1>
+          <h1 className="text-xl font-bold tracking-tight">Patches</h1>
           <p className="text-sm text-ink-muted">Cut the grid into rectangles, one per clue.</p>
         </div>
         <button

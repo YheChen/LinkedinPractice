@@ -15,7 +15,7 @@ export const GAMES: readonly GameInfo[] = [
   {
     id: "path",
     slug: "trace",
-    name: "Trace",
+    name: "Zip",
     tagline: "One line, every cell, in order.",
     rules: "Draw a single unbroken path that fills every cell and visits the numbered dots 1→N in sequence. No diagonals, no crossings, no walls.",
     accentVar: "--c-path",
@@ -24,7 +24,7 @@ export const GAMES: readonly GameInfo[] = [
   {
     id: "partition",
     slug: "parcel",
-    name: "Parcel",
+    name: "Patches",
     tagline: "Cut the grid into perfect rectangles.",
     rules: "Split the board so each region is a rectangle holding exactly one clue, its area equal to the number, matching the required shape.",
     accentVar: "--c-tile",
@@ -33,7 +33,7 @@ export const GAMES: readonly GameInfo[] = [
   {
     id: "wordpath",
     slug: "weave",
-    name: "Weave",
+    name: "Wend",
     tagline: "Thread hidden words through the letters.",
     rules: "Connect neighbouring letters to spell the hidden words. Every letter is used exactly once and words never overlap.",
     accentVar: "--c-word",

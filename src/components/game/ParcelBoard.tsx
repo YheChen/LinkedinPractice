@@ -103,8 +103,8 @@ export function ParcelBoard({ store }: { store: ParcelStore }) {
       <div
         {...boardProps}
         role="application"
-        aria-roledescription="Parcel puzzle board"
-        aria-label={`Parcel grid, ${rows} by ${cols}. Draw a rectangle around each clue equal to its number.`}
+        aria-roledescription="Patches puzzle board"
+        aria-label={`Patches grid, ${rows} by ${cols}. Draw a rectangle around each clue equal to its number.`}
         tabIndex={0}
         onKeyDown={onKeyDown}
         className="relative grid aspect-square w-full rounded-card border border-line bg-surface"
