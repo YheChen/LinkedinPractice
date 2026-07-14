@@ -10,6 +10,7 @@ import { generateWeaveAsync } from "@/workers/weaveClient";
 import { makeRandomSeed } from "@/engine/trace/generate";
 import { exportJson, importJson, encodeShare } from "@/engine/io";
 import { PrintablePuzzle } from "@/components/game/PrintablePuzzle";
+import { TraceEditor } from "@/components/game/TraceEditor";
 
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard", "expert"];
 
@@ -32,6 +33,7 @@ function slugFor(game: GameId): string {
  * authoring already yields unique, shareable boards today.
  */
 export default function EditorPage() {
+  const [mode, setMode] = useState<"generate" | "build">("generate");
   const [game, setGame] = useState<GameId>("path");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [seed, setSeed] = useState<string>("share-me");
@@ -83,6 +85,26 @@ export default function EditorPage() {
         </p>
       </header>
 
+      <div className="no-print mb-4 flex gap-1" role="tablist" aria-label="Editor mode">
+        {(["generate", "build"] as const).map((m) => (
+          <button
+            key={m}
+            role="tab"
+            aria-selected={mode === m}
+            onClick={() => setMode(m)}
+            className={`rounded-lg border px-4 py-1.5 text-sm font-semibold capitalize ${mode === m ? "border-brand bg-brand text-brand-ink" : "border-line"}`}
+          >
+            {m === "build" ? "Build (Trace)" : "Generate"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "build" ? (
+        <section className="rounded-card border border-line bg-surface p-4">
+          <TraceEditor />
+        </section>
+      ) : (
+      <>
       <section className="no-print space-y-3 rounded-card border border-line bg-surface p-4">
         <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Game">
           {GAMES.map((g) => (
@@ -186,6 +208,8 @@ export default function EditorPage() {
           Import
         </button>
       </section>
+      </>
+      )}
     </div>
   );
 }
