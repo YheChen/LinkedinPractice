@@ -1,15 +1,21 @@
 # Gridwright
 
-Original daily logic & word puzzle platform — three games inspired by the *genres*
-of LinkedIn's Zip, Patches, and Wend. We reproduce **rules and interaction patterns
-only** — never LinkedIn's assets, code, puzzle data, wording, or branding. All names,
-palette, icons, and copy are original.
+A personal daily logic & word puzzle practice platform — three games modelled on the
+*genres* of LinkedIn's Zip, Patches, and Wend. Only the **rules and interaction
+patterns** are reproduced — never LinkedIn's assets, code, puzzle data, or icons; the
+styling and generated puzzles are original.
+
+> ⚠️ **Naming / distribution note.** For this **personal-use** build the games use
+> LinkedIn's own names (Zip / Patches / Wend), which are LinkedIn trademarks. That's fine
+> for private practice, but do **not** deploy this publicly under these names — rename to
+> original marks (the code keeps neutral internal slugs `trace`/`parcel`/`weave`, so only
+> the display strings in `src/lib/games.ts` + the board `aria-label`s need changing).
 
 | Game | Mechanic |
 |------|----------|
-| **Trace** (Zip-style) | Draw one line through every cell, visiting numbers in order. |
-| **Parcel** (Patches/Shikaku-style) | Cut the grid into rectangles — one area/shape clue each. |
-| **Weave** (Wend-style) | Thread hidden words through the letters; every letter used once. |
+| **Zip** | Draw one line through every cell, visiting numbers in order. |
+| **Patches** | Cut the grid into rectangles — one area/shape clue each. |
+| **Wend** | Thread hidden words through the letters; every letter used once. |
 
 All three are **procedurally generated** with selectable difficulty, uniqueness-checked
 by a solver, and reproducible from a seed. There is **no database** — puzzles are a pure

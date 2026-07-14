@@ -96,8 +96,8 @@ export function WeaveBoard({ store }: { store: WeaveStore }) {
       <div
         {...boardProps}
         role="application"
-        aria-roledescription="Weave puzzle board"
-        aria-label={`Weave grid, ${rows} by ${cols}. Connect adjacent letters to spell the hidden words; every letter is used once.`}
+        aria-roledescription="Wend puzzle board"
+        aria-label={`Wend grid, ${rows} by ${cols}. Connect adjacent letters to spell the hidden words; every letter is used once.`}
         tabIndex={0}
         onKeyDown={onKeyDown}
         className="relative grid aspect-square w-full rounded-card border border-line bg-surface"

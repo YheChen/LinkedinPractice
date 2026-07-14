@@ -1,14 +1,14 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Parcel end-to-end. Boards are procedurally generated, so we solve via repeated
+ * Patches end-to-end. Boards are procedurally generated, so we solve via repeated
  * Hint (each hint places one correct parcel), which deterministically finishes
  * any board and exercises generate → solver → complete. The pointer drag/place
  * path is covered directly by the session unit tests.
  */
-test("Parcel: a generated board can be completed via hints", async ({ page }) => {
+test("Patches: a generated board can be completed via hints", async ({ page }) => {
   await page.goto("/play/parcel");
-  await expect(page.getByRole("application", { name: /Parcel grid/i })).toBeVisible({
+  await expect(page.getByRole("application", { name: /Patches grid/i })).toBeVisible({
     timeout: 15_000,
   });
 
@@ -24,9 +24,9 @@ test("Parcel: a generated board can be completed via hints", async ({ page }) =>
   await expect(dialog).toContainText(/Solved in/i);
 });
 
-test("Parcel: a pointer drag places a parcel (status updates)", async ({ page }) => {
+test("Patches: a pointer drag places a parcel (status updates)", async ({ page }) => {
   await page.goto("/play/parcel");
-  const board = page.getByRole("application", { name: /Parcel grid/i });
+  const board = page.getByRole("application", { name: /Patches grid/i });
   await expect(board).toBeVisible({ timeout: 15_000 });
 
   // One hint places exactly one correct parcel — assert the status reflects it.
@@ -35,9 +35,9 @@ test("Parcel: a pointer drag places a parcel (status updates)", async ({ page })
   await expect(status).toContainText(/1 of \d+ parcels/i);
 });
 
-test("Parcel: board fits the viewport width", async ({ page }) => {
+test("Patches: board fits the viewport width", async ({ page }) => {
   await page.goto("/play/parcel");
-  const board = page.getByRole("application", { name: /Parcel grid/i });
+  const board = page.getByRole("application", { name: /Patches grid/i });
   await expect(board).toBeVisible({ timeout: 15_000 });
   const box = await board.boundingBox();
   const viewport = page.viewportSize();

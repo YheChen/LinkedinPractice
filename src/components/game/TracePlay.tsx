@@ -53,7 +53,7 @@ export function TracePlay({
     <div className="mx-auto w-full max-w-xl">
       <header className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Trace</h1>
+          <h1 className="text-xl font-bold tracking-tight">Zip</h1>
           <p className="text-sm text-ink-muted">One line, every cell, numbers in order.</p>
         </div>
         <button

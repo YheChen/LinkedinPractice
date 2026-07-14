@@ -100,8 +100,8 @@ export function TraceBoard({ store }: { store: TraceStore }) {
       <div
         {...boardProps}
         role="application"
-        aria-roledescription="Trace puzzle board"
-        aria-label={`Trace grid, ${rows} by ${cols}. Draw one line through every cell, visiting numbers in order.`}
+        aria-roledescription="Zip puzzle board"
+        aria-label={`Zip grid, ${rows} by ${cols}. Draw one line through every cell, visiting numbers in order.`}
         tabIndex={0}
         onKeyDown={onKeyDown}
         className="relative grid aspect-square w-full select-none rounded-card border border-line bg-surface"

@@ -9,16 +9,16 @@ test("Editor: generate → Play link opens a shared board", async ({ page }) => 
   const play = page.getByRole("link", { name: "Play" });
   await expect(play).toBeVisible({ timeout: 15_000 });
   const href = await play.getAttribute("href");
-  expect(href).toMatch(/\/play\/trace\?p=/); // default game is Trace
+  expect(href).toMatch(/\/play\/trace\?p=/); // default game is Zip
 
   await play.click();
   await expect(page).toHaveURL(/\/play\/trace\?p=/);
-  await expect(page.getByRole("application", { name: /Trace grid/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("application", { name: /Zip grid/i })).toBeVisible({ timeout: 15_000 });
 });
 
-test("Editor: free-form Build mode makes a unique, playable Trace board", async ({ page }) => {
+test("Editor: free-form Build mode makes a unique, playable Zip board", async ({ page }) => {
   await page.goto("/editor");
-  await page.getByRole("tab", { name: /Build \(Trace\)/i }).click();
+  await page.getByRole("tab", { name: /Build \(Zip\)/i }).click();
   await page.getByRole("button", { name: "4×4" }).click();
 
   // Fill a 4×4 snake path — every cell numbered forces a single solution.
@@ -33,7 +33,7 @@ test("Editor: free-form Build mode makes a unique, playable Trace board", async 
   await expect(play).toBeVisible();
   await play.click();
   await expect(page).toHaveURL(/\/play\/trace\?p=/);
-  await expect(page.getByRole("application", { name: /Trace grid/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("application", { name: /Zip grid/i })).toBeVisible({ timeout: 15_000 });
 });
 
 test("Editor: import rejects invalid JSON with an error", async ({ page }) => {

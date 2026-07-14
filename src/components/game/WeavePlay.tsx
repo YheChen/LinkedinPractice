@@ -50,7 +50,7 @@ export function WeavePlay({
     <div className="mx-auto w-full max-w-xl">
       <header className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Weave</h1>
+          <h1 className="text-xl font-bold tracking-tight">Wend</h1>
           <p className="text-sm text-ink-muted">Thread the hidden words through the letters.</p>
         </div>
         <button

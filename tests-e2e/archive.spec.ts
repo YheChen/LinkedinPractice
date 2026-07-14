@@ -4,10 +4,10 @@ test("Daily: links deep-link into a date-seeded board", async ({ page }) => {
   await page.goto("/daily");
   await expect(page.getByRole("heading", { name: /Today’s three puzzles/i })).toBeVisible();
 
-  await page.getByRole("link", { name: /Play today’s Trace/i }).click();
+  await page.getByRole("link", { name: /Play today’s Zip/i }).click();
   // URL carries the daily seed + difficulty.
   await expect(page).toHaveURL(/\/play\/trace\?seed=daily%3A\d{4}-\d{2}-\d{2}&d=medium/);
-  await expect(page.getByRole("application", { name: /Trace grid/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("application", { name: /Zip grid/i })).toBeVisible({ timeout: 15_000 });
 });
 
 test("Daily: the same seed reproduces the same board", async ({ page }) => {

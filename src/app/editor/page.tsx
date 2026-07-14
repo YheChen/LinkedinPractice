@@ -120,7 +120,7 @@ export default function EditorPage() {
             onClick={() => setMode(m)}
             className={`rounded-lg border px-4 py-1.5 text-sm font-semibold capitalize ${mode === m ? "border-brand bg-brand text-brand-ink" : "border-line"}`}
           >
-            {m === "build" ? "Build (Trace)" : "Generate"}
+            {m === "build" ? "Build (Zip)" : "Generate"}
           </button>
         ))}
       </div>
