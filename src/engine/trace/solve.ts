@@ -8,7 +8,7 @@
  */
 import type { PathPuzzle } from "@/engine/types";
 import { fromIndex, neighbors, toIndex } from "@/lib/grid";
-import { canExtend, hasWall, startCell, totalCells } from "./rules";
+import { canExtendSolving, checkpointPrefixOrdered, hasWall, startCell, totalCells } from "./rules";
 
 /**
  * Connectivity prune: from `head`, can every still-unvisited cell be reached
@@ -43,6 +43,9 @@ function unvisitedReachable(
 
 /** Complete `prefix` into a full solution, or null if none exists from here. */
 export function solveFrom(puzzle: PathPuzzle, prefix: readonly number[]): number[] | null {
+  // A prefix that already broke checkpoint order has no valid completion; bail
+  // so callers (e.g. Hint) peel it back to the last on-track position.
+  if (!checkpointPrefixOrdered(puzzle, prefix)) return null;
   const total = totalCells(puzzle);
   const { rows, cols } = puzzle.meta;
   const path: number[] = [...prefix];
@@ -55,7 +58,7 @@ export function solveFrom(puzzle: PathPuzzle, prefix: readonly number[]): number
     for (const nb of neighbors(fromIndex(last, cols), rows, cols)) {
       const cell = toIndex(nb, cols);
       if (visited.has(cell)) continue;
-      if (!canExtend(puzzle, path, cell).ok) continue;
+      if (!canExtendSolving(puzzle, path, cell)) continue;
       path.push(cell);
       visited.add(cell);
       if (dfs()) return true;
@@ -92,7 +95,7 @@ export function countSolutions(puzzle: PathPuzzle, cap = 2): number {
     for (const nb of neighbors(fromIndex(last, cols), rows, cols)) {
       const cell = toIndex(nb, cols);
       if (visited.has(cell)) continue;
-      if (!canExtend(puzzle, path, cell).ok) continue;
+      if (!canExtendSolving(puzzle, path, cell)) continue;
       path.push(cell);
       visited.add(cell);
       dfs();

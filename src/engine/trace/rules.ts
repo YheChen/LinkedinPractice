@@ -20,7 +20,6 @@ export type MoveRejection =
   | "not-adjacent"
   | "already-visited"
   | "wall-between"
-  | "checkpoint-out-of-order"
   | "not-start-cell"
   | "empty-path";
 
@@ -77,7 +76,16 @@ export function hasWall(puzzle: PathPuzzle, a: number, b: number): boolean {
   return puzzle.walls.includes(wallKey(fromIndex(a, cols), fromIndex(b, cols), cols));
 }
 
-/** Can `cell` be appended to `path`? Pure predicate with a machine reason. */
+/**
+ * Can `cell` be appended to `path` as a PLAYER MOVE? Pure predicate with a
+ * machine reason.
+ *
+ * NOTE (matches the real game): checkpoint ORDER is NOT enforced here. The
+ * player is free to move through numbered cells out of order (e.g. 1 → 2 → 4);
+ * the path simply won't count as solved unless the order is right. Ordering is a
+ * WIN condition (see isSolved / checkpointsInOrder), not a movement restriction.
+ * The solver enforces order separately via canExtendSolving.
+ */
 export function canExtend(puzzle: PathPuzzle, path: readonly number[], cell: number): MoveCheck {
   if (path.length === 0) {
     return cell === startCell(puzzle) ? { ok: true } : { ok: false, reason: "not-start-cell" };
@@ -89,11 +97,55 @@ export function canExtend(puzzle: PathPuzzle, path: readonly number[], cell: num
   }
   if (path.includes(cell)) return { ok: false, reason: "already-visited" };
   if (hasWall(puzzle, last, cell)) return { ok: false, reason: "wall-between" };
-  const cp = checkpointAt(puzzle, cell);
-  if (cp !== undefined && cp !== nextExpectedCheckpoint(puzzle, path)) {
-    return { ok: false, reason: "checkpoint-out-of-order" };
-  }
   return { ok: true };
+}
+
+/**
+ * A checkpoint may only be entered when it is the next one due — used by the
+ * SOLVER (not by player movement). Entering a checkpoint early permanently
+ * breaks the ascending order (checkpoints can't be revisited), so this is a
+ * sound prune when searching for/counting valid solutions.
+ */
+export function respectsCheckpointOrder(
+  puzzle: PathPuzzle,
+  path: readonly number[],
+  cell: number,
+): boolean {
+  const cp = checkpointAt(puzzle, cell);
+  return cp === undefined || cp === nextExpectedCheckpoint(puzzle, path);
+}
+
+/** Movement legality AND checkpoint-order — the rule the solver extends by. */
+export function canExtendSolving(puzzle: PathPuzzle, path: readonly number[], cell: number): boolean {
+  return canExtend(puzzle, path, cell).ok && respectsCheckpointOrder(puzzle, path, cell);
+}
+
+/**
+ * Are the checkpoints seen SO FAR in ascending order (1,2,…,k) with no gap/skip?
+ * True for a partial path that is still "on track"; false once a checkpoint was
+ * entered out of turn. (Does not require all N to be present.)
+ */
+export function checkpointPrefixOrdered(puzzle: PathPuzzle, path: readonly number[]): boolean {
+  let expected = 1;
+  for (const cell of path) {
+    const n = checkpointAt(puzzle, cell);
+    if (n !== undefined) {
+      if (n !== expected) return false;
+      expected++;
+    }
+  }
+  return true;
+}
+
+/** Are ALL N checkpoints on the path visited in ascending order 1,2,…,N? */
+export function checkpointsInOrder(puzzle: PathPuzzle, path: readonly number[]): boolean {
+  return checkpointPrefixOrdered(puzzle, path) && countCheckpointsSeen(puzzle, path) === maxCheckpoint(puzzle);
+}
+
+function countCheckpointsSeen(puzzle: PathPuzzle, path: readonly number[]): number {
+  let seen = 0;
+  for (const cell of path) if (checkpointAt(puzzle, cell) !== undefined) seen++;
+  return seen;
 }
 
 /** Append if legal; returns a NEW array or null if the move is rejected. */
@@ -113,16 +165,15 @@ export function backtrackTo(path: readonly number[], cell: number): number[] {
   return path.slice(0, idx + 1);
 }
 
-/** Covers every cell → solved (order already guaranteed by extend()). */
+/** Solved = the line fills every cell AND visits the checkpoints in order. */
 export function isSolved(puzzle: PathPuzzle, path: readonly number[]): boolean {
-  return path.length === totalCells(puzzle);
+  return path.length === totalCells(puzzle) && checkpointsInOrder(puzzle, path);
 }
 
 /**
- * Derived validation/announcement state. `errorCells` is empty because Trace
- * prevents illegal moves rather than allowing then flagging them (RESEARCH.md
- * §1: "prevented, not punished"). We still surface a live progress message for
- * the screen-reader status line.
+ * Derived validation/announcement state. Illegal MOVES are prevented (RESEARCH.md
+ * §1: "prevented, not punished"), but out-of-order checkpoint visits are allowed
+ * — so a full path with the wrong order is not solved, and we say so.
  */
 export function validate(puzzle: PathPuzzle, path: readonly number[]): ValidationState {
   const solved = isSolved(puzzle, path);
@@ -130,9 +181,17 @@ export function validate(puzzle: PathPuzzle, path: readonly number[]): Validatio
   const total = totalCells(puzzle);
   const next = nextExpectedCheckpoint(puzzle, path);
   const maxCp = maxCheckpoint(puzzle);
-  const message = solved
-    ? "Solved! The line fills every cell."
-    : `Line covers ${covered} of ${total} cells.` +
+  const full = covered === total;
+
+  let message: string;
+  if (solved) {
+    message = "Solved! The line fills every cell in order.";
+  } else if (full) {
+    message = "Every cell is filled, but the numbers are out of order — retrace to fix it.";
+  } else {
+    message =
+      `Line covers ${covered} of ${total} cells.` +
       (next <= maxCp ? ` Next checkpoint: ${next}.` : " All checkpoints reached.");
+  }
   return { solved, errorCells: [], message };
 }

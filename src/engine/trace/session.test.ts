@@ -34,6 +34,18 @@ describe("Trace session", () => {
     s().gestureEnd();
   });
 
+  it("allows out-of-order checkpoint moves; not solved until the order is right", () => {
+    const { s } = drive();
+    // 5x5 fixture: checkpoint 2 is at cell 4, checkpoint 3 at cell 5. Cell 5 is
+    // directly below the start (cell 0), so we can enter checkpoint 3 before 2.
+    s().gestureStart(0);
+    s().cellEnter(5); // checkpoint 3, entered before 2 — allowed
+    expect(s().live).toEqual([0, 5]);
+    expect(s().solved).toBe(false);
+    s().gestureEnd();
+    expect(s().solved).toBe(false);
+  });
+
   it("ignores illegal moves (no diagonal / no jump)", () => {
     const { s } = drive();
     s().gestureStart(0);
