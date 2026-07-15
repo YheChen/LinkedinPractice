@@ -132,18 +132,27 @@ export function ParcelBoard({ store }: { store: ParcelStore }) {
               style={{ background: isError ? "color-mix(in srgb, rgb(var(--c-danger)) 20%, transparent)" : undefined }}
             >
               {isCursor && <span aria-hidden className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-brand" />}
-              {clue && (
-                <span
-                  className="relative z-10 flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-[min(4.2vw,1.1rem)] font-bold text-white"
-                  style={{
-                    background: `hsl(${hueByCell.get(i)} 58% 44%)`,
-                    boxShadow: "0 1px 2px rgba(0,0,0,.3)",
-                  }}
-                >
-                  {clue.area}
-                  <ShapeGlyph shape={clue.shape} />
-                </span>
-              )}
+              {clue &&
+                (() => {
+                  const d = badgeDims(clue.shape);
+                  return (
+                    <span
+                      className="relative z-10 grid place-items-center font-bold leading-none text-white"
+                      aria-label={`${clue.area ?? ""} ${clue.shape}`.trim()}
+                      style={{
+                        width: d.w,
+                        height: d.h,
+                        borderRadius: d.radius,
+                        border: d.dashed ? "2px dashed rgba(255,255,255,.85)" : undefined,
+                        background: `hsl(${hueByCell.get(i)} 58% 44%)`,
+                        boxShadow: "0 1px 2px rgba(0,0,0,.3)",
+                        fontSize: "min(4.2vw,1.05rem)",
+                      }}
+                    >
+                      {clue.area}
+                    </span>
+                  );
+                })()}
             </div>
           );
         })}
@@ -194,10 +203,20 @@ export function ParcelBoard({ store }: { store: ParcelStore }) {
   );
 }
 
-function ShapeGlyph({ shape }: { shape: string }) {
-  if (shape === "free") return null;
-  const common = "inline-block align-middle";
-  if (shape === "square") return <span aria-label="square" className={common}>▪</span>;
-  if (shape === "wide") return <span aria-label="wide" className={common}>▬</span>;
-  return <span aria-label="tall" className={common}>▮</span>;
+/**
+ * Clue badge proportions — the badge itself is shaped like the required region:
+ * a square, a wide rectangle, a tall rectangle, or (free) a dashed rounded square
+ * meaning "any shape". The number sits inside.
+ */
+function badgeDims(shape: string): { w: string; h: string; radius: string; dashed?: boolean } {
+  switch (shape) {
+    case "square":
+      return { w: "60%", h: "60%", radius: "22%" };
+    case "wide":
+      return { w: "82%", h: "48%", radius: "20%" };
+    case "tall":
+      return { w: "48%", h: "82%", radius: "20%" };
+    default: // free
+      return { w: "62%", h: "62%", radius: "28%", dashed: true };
+  }
 }
