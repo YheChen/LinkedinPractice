@@ -164,7 +164,9 @@ export function TraceEditor() {
                 className="flex items-center justify-center border border-line/70 text-lg font-bold"
                 style={{
                   background: num ? (num === 1 ? "rgb(var(--c-path))" : "rgb(var(--c-ink))") : "rgb(var(--c-surface))",
-                  color: num ? "white" : "rgb(var(--c-ink))",
+                  // Numbered badge text uses the surface colour so it inverts with
+                  // the theme (never white-on-white in dark mode).
+                  color: num ? "rgb(var(--c-surface))" : "rgb(var(--c-ink))",
                   cursor: mode === "checkpoints" ? "pointer" : "default",
                 }}
               >
