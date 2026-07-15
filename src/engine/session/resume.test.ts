@@ -28,6 +28,43 @@ describe("resume — snapshot/restore round-trip", () => {
     expect(s.getState().snapshot()).toBeNull(); // just the start cell
   });
 
+  it("Trace: restore REJECTS a snapshot that isn't valid for this puzzle (drag-strand bug)", () => {
+    const store = createTraceSession(TRACE_5x5_EASY.puzzle);
+    const base = {
+      puzzleId: TRACE_5x5_EASY.puzzle.meta.id,
+      metrics: { elapsedMs: 0, backtracks: 0, hintsUsed: 0, restarts: 0, redraws: 0, mistakes: 0 },
+      timer: { accumulatedMs: 0, wasRunning: false },
+      updatedAt: 0,
+    };
+    // Path that doesn't start at checkpoint 1 (cell 0) — must be discarded so the
+    // board isn't stranded and stays drawable from the start.
+    store.getState().restore({ ...base, player: [22] });
+    expect(store.getState().live).toEqual([0]);
+
+    // Illegal (non-adjacent) path — discarded.
+    store.getState().restore({ ...base, player: [0, 24] });
+    expect(store.getState().live).toEqual([0]);
+
+    // A valid in-progress path IS restored.
+    store.getState().restore({ ...base, player: [0, 1, 2] });
+    expect(store.getState().live).toEqual([0, 1, 2]);
+  });
+
+  it("Trace: restore does not clobber a game already in progress", () => {
+    const store = createTraceSession(TRACE_5x5_EASY.puzzle);
+    store.getState().gestureStart(0);
+    store.getState().cellEnter(1);
+    store.getState().gestureEnd(); // live = [0,1]
+    store.getState().restore({
+      puzzleId: TRACE_5x5_EASY.puzzle.meta.id,
+      player: [0, 5, 10],
+      metrics: { elapsedMs: 0, backtracks: 0, hintsUsed: 0, restarts: 0, redraws: 0, mistakes: 0 },
+      timer: { accumulatedMs: 0, wasRunning: false },
+      updatedAt: 0,
+    });
+    expect(store.getState().live).toEqual([0, 1]); // unchanged
+  });
+
   it("Parcel: placed rectangles survive a restore", () => {
     const a = createParcelSession(PARCEL_5x5.puzzle);
     a.getState().gestureStart({ r: 0, c: 0 });

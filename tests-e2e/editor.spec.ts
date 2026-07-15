@@ -19,10 +19,10 @@ test("Editor: generate → Play link opens a shared board", async ({ page }) => 
 test("Editor: free-form Build mode makes a unique, playable Zip board", async ({ page }) => {
   await page.goto("/editor");
   await page.getByRole("tab", { name: /Build \(Zip\)/i }).click();
-  await page.getByRole("button", { name: "4×4" }).click();
+  await page.getByRole("button", { name: "5×5" }).click();
 
-  // Fill a 4×4 snake path — every cell numbered forces a single solution.
-  const snake = [0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11, 15, 14, 13, 12];
+  // Fill a 5×5 snake path — every cell numbered forces a single solution.
+  const snake = [0, 1, 2, 3, 4, 9, 8, 7, 6, 5, 10, 11, 12, 13, 14, 19, 18, 17, 16, 15, 20, 21, 22, 23, 24];
   for (const i of snake) {
     await page.locator(`button[aria-label^="Cell ${i}, "]`).click();
   }

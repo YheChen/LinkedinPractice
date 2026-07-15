@@ -151,7 +151,8 @@ export function usePointerBoard(
         typeof e.nativeEvent.getCoalescedEvents === "function"
           ? e.nativeEvent.getCoalescedEvents()
           : [e.nativeEvent];
-      for (const ev of events.length ? events : [e.nativeEvent]) {
+      const list = events.length ? events : [e.nativeEvent];
+      for (const ev of list) {
         const cell = cellFromEvent(ev.clientX, ev.clientY);
         if (cell) emitCell(cell);
       }
