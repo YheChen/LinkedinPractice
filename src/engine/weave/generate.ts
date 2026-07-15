@@ -31,13 +31,15 @@ export interface WeaveDifficultyConfig {
   cols: number;
   /** cap on word length used (shorter = easier) */
   maxLen: number;
+  /** fraction of cells left as obstacles (blocked, no letter) */
+  blockedRatio: number;
 }
 
 export const WEAVE_DIFFICULTY: Record<Difficulty, WeaveDifficultyConfig> = {
-  easy: { rows: 4, cols: 4, maxLen: 4 },
-  medium: { rows: 5, cols: 5, maxLen: 5 },
-  hard: { rows: 5, cols: 5, maxLen: 6 },
-  expert: { rows: 6, cols: 6, maxLen: 7 },
+  easy: { rows: 5, cols: 5, maxLen: 4, blockedRatio: 0.12 },
+  medium: { rows: 5, cols: 5, maxLen: 5, blockedRatio: 0.18 },
+  hard: { rows: 6, cols: 6, maxLen: 6, blockedRatio: 0.2 },
+  expert: { rows: 6, cols: 6, maxLen: 7, blockedRatio: 0.25 },
 };
 
 function boustrophedon(rows: number, cols: number): number[] {
@@ -86,6 +88,64 @@ function randomHamiltonianPath(rng: Rng, rows: number, cols: number): number[] {
   return boustrophedon(rows, cols);
 }
 
+/**
+ * Hamiltonian path over the OPEN cells only (i.e. every cell not in `blocked`).
+ * Returns a path visiting each open cell exactly once, or null if none is found.
+ * Words are cut from this path, so obstacles carve the shapes the words wind
+ * around (real-Wend style). Warnsdorff heuristic + restarts.
+ */
+function hamiltonianOverOpen(
+  rng: Rng,
+  rows: number,
+  cols: number,
+  blocked: ReadonlySet<number>,
+): number[] | null {
+  const open: number[] = [];
+  for (let i = 0; i < rows * cols; i++) if (!blocked.has(i)) open.push(i);
+  const target = open.length;
+  const openNbrs = (cell: number, visited: Set<number>) =>
+    neighbors(fromIndex(cell, cols), rows, cols)
+      .map((n) => toIndex(n, cols))
+      .filter((c) => !blocked.has(c) && !visited.has(c));
+
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const start = rng.pick(open);
+    const path = [start];
+    const visited = new Set<number>([start]);
+    let cur = start;
+    let stuck = false;
+    while (path.length < target) {
+      const cand = openNbrs(cur, visited);
+      if (cand.length === 0) {
+        stuck = true;
+        break;
+      }
+      const shuffled = rng.shuffle(cand);
+      let best = shuffled[0]!;
+      let bestDeg = Infinity;
+      for (const c of shuffled) {
+        const deg = openNbrs(c, visited).length;
+        if (deg < bestDeg) {
+          bestDeg = deg;
+          best = c;
+        }
+      }
+      path.push(best);
+      visited.add(best);
+      cur = best;
+    }
+    if (!stuck && path.length === target) return path;
+  }
+  return null;
+}
+
+/** Pick `count` random blocked cells; degenerate (empty) if count <= 0. */
+function pickBlocked(rng: Rng, total: number, count: number): Set<number> {
+  if (count <= 0) return new Set();
+  const all = rng.shuffle(Array.from({ length: total }, (_, i) => i));
+  return new Set(all.slice(0, count));
+}
+
 /** Random composition of `total` into parts in [MIN_WORD_LEN, maxLen]. */
 function composition(rng: Rng, total: number, maxLen: number): number[] | null {
   const parts: number[] = [];
@@ -122,9 +182,19 @@ export function generateWeave(opts: GenerateWeaveOptions): WordPathPuzzle {
 
   let fallback: WordPathPuzzle | null = null;
 
+  const blockedCount = Math.round(total * cfg.blockedRatio);
+
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const rng = createRng(`${seed}|weave|v${WEAVE_GENERATOR_VERSION}|${difficulty}|${attempt}`);
-    const lengths = composition(rng, total, cfg.maxLen);
+
+    // Carve obstacles, then find a Hamiltonian path over the remaining OPEN cells;
+    // the words are cut from that path so they wind around the obstacles.
+    const blocked = pickBlocked(rng, total, blockedCount);
+    const path = hamiltonianOverOpen(rng, cfg.rows, cfg.cols, blocked);
+    if (!path) continue; // this obstacle layout has no single path — resample
+    const openCount = path.length;
+
+    const lengths = composition(rng, openCount, cfg.maxLen);
     if (!lengths) continue;
 
     // Pick a distinct dictionary word for each segment length.
@@ -143,8 +213,7 @@ export function generateWeave(opts: GenerateWeaveOptions): WordPathPuzzle {
     }
     if (!ok) continue;
 
-    // Cut the Hamiltonian path into segments and write letters.
-    const path = randomHamiltonianPath(rng, cfg.rows, cfg.cols);
+    // Write letters along the open-cell path; blocked cells stay null.
     const letters = new Array<string | null>(total).fill(null);
     let idx = 0;
     for (let i = 0; i < words.length; i++) {
@@ -163,7 +232,25 @@ export function generateWeave(opts: GenerateWeaveOptions): WordPathPuzzle {
     if (!aborted && count === 1) return puzzle;
   }
 
-  return fallback ?? buildPuzzle(new Array(total).fill(null), [], cfg, difficulty, seed);
+  // Fallback: an obstacle-free board (always solvable) so generation never fails.
+  if (fallback) return fallback;
+  const rng = createRng(`${seed}|weave-fb|${difficulty}`);
+  const path = randomHamiltonianPath(rng, cfg.rows, cfg.cols);
+  const lengths = composition(rng, total, cfg.maxLen) ?? [total];
+  const letters = new Array<string | null>(total).fill(null);
+  let idx = 0;
+  const words: string[] = [];
+  const usedWords = new Set<string>();
+  for (const len of lengths) {
+    const pool = wordsOfLength(len).filter((w) => !usedWords.has(w));
+    const w = pool.length ? rng.pick(pool) : "";
+    if (w) {
+      words.push(w);
+      usedWords.add(w);
+      for (let j = 0; j < w.length; j++) letters[path[idx++]!] = w[j]!;
+    }
+  }
+  return buildPuzzle(letters, words, cfg, difficulty, seed);
 }
 
 function buildPuzzle(
