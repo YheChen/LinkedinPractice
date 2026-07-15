@@ -30,10 +30,13 @@ export interface TraceDifficultyConfig {
 }
 
 export const TRACE_DIFFICULTY: Record<Difficulty, TraceDifficultyConfig> = {
-  easy: { rows: 5, cols: 5, checkpointRatio: 0.3, wallRatio: 0 },
-  medium: { rows: 6, cols: 6, checkpointRatio: 0.24, wallRatio: 0.05 },
-  hard: { rows: 7, cols: 7, checkpointRatio: 0.2, wallRatio: 0.1 },
-  expert: { rows: 8, cols: 8, checkpointRatio: 0.16, wallRatio: 0.14 },
+  // wallRatio is the INITIAL wall fraction; the generator adds more (in batches)
+  // as needed to reach a unique solution while keeping the numbered checkpoints
+  // sparse and Zip-like. Bigger boards start more walled so uniqueness is fast.
+  easy: { rows: 5, cols: 5, checkpointRatio: 0.3, wallRatio: 0.08 },
+  medium: { rows: 6, cols: 6, checkpointRatio: 0.24, wallRatio: 0.18 },
+  hard: { rows: 7, cols: 7, checkpointRatio: 0.2, wallRatio: 0.3 },
+  expert: { rows: 8, cols: 8, checkpointRatio: 0.16, wallRatio: 0.4 },
 };
 
 function boustrophedon(rows: number, cols: number): number[] {
@@ -163,9 +166,13 @@ export function generateTrace(opts: GenerateTraceOptions): PathPuzzle {
 
   const path = randomHamiltonianPath(rng, cfg.rows, cfg.cols);
 
+  // Candidate walls = edges the intended path does NOT use, so walling any of
+  // them never breaks the solution — it only prunes ALTERNATIVE solutions.
   const wallPool = rng.shuffle(candidateWalls(path, cfg.rows, cfg.cols));
-  const walls = wallPool.slice(0, Math.floor(wallPool.length * cfg.wallRatio));
+  let wallCount = Math.floor(wallPool.length * cfg.wallRatio);
 
+  // Keep the numbered checkpoints SPARSE and Zip-like; uniqueness is achieved
+  // mainly with walls below.
   const baseCount = Math.max(3, Math.round(total * cfg.checkpointRatio));
   const cpSet = new Set<number>([0, path.length - 1]);
   const middlePool = rng.shuffle(
@@ -174,13 +181,25 @@ export function generateTrace(opts: GenerateTraceOptions): PathPuzzle {
   let mi = 0;
   while (cpSet.size < baseCount && mi < middlePool.length) cpSet.add(middlePool[mi++]!);
 
-  let puzzle = buildPuzzle(path, walls, [...cpSet], cfg, difficulty, seed);
+  const build = () => buildPuzzle(path, wallPool.slice(0, wallCount), [...cpSet], cfg, difficulty, seed);
+  let puzzle = build();
 
   if (unique) {
-    // Tighten until unique by revealing more of the (already fixed) path.
-    while (countSolutions(puzzle, 2) !== 1 && mi < middlePool.length) {
-      cpSet.add(middlePool[mi++]!);
-      puzzle = buildPuzzle(path, walls, [...cpSet], cfg, difficulty, seed);
+    // Tighten to a unique solution by adding WALLS first (this keeps the board
+    // sparsely numbered like real Zip). Walling every non-path edge forces the
+    // path outright, so this always terminates; extra checkpoints are only a
+    // last resort if the wall pool is exhausted.
+    //
+    // Walls are added in BATCHES: fewer (expensive) solver calls, and a more
+    // constrained board whose uniqueness confirmation is much faster — key to
+    // keeping large-board generation snappy.
+    const batch = Math.max(2, Math.ceil(wallPool.length / 10));
+    let guard = 0;
+    while (countSolutions(puzzle, 2) !== 1 && guard++ < 500) {
+      if (wallCount < wallPool.length) wallCount = Math.min(wallPool.length, wallCount + batch);
+      else if (mi < middlePool.length) cpSet.add(middlePool[mi++]!);
+      else break;
+      puzzle = build();
     }
   }
 
