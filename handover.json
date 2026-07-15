@@ -1,0 +1,96 @@
+{
+  "project": {
+    "name": "Gridwright",
+    "repo": "https://github.com/YheChen/LinkedinPractice",
+    "root": "/Users/yanzhenchen/Desktop/GitHub Projects/LinkedinPractice",
+    "summary": "Original web puzzle platform with four games inspired by LinkedIn's Zip, Patches, Wend, and Queens. Reproduces rules + interaction patterns only; no LinkedIn assets/code/puzzle-data. Local-first (no database).",
+    "displayNamesNote": "Games are DISPLAYED as Zip / Patches / Wend / Queens (personal-use naming per owner). These are LinkedIn trademarks — do NOT deploy publicly under these names. Internal route slugs and code identifiers stay neutral (trace/parcel/wordpath; queens uses the neutral-enough 'queens' slug + gameId). Reverting display names is a one-file change (src/lib/games.ts + board aria-labels)."
+  },
+  "stack": {
+    "framework": "Next.js 15.1.11 (App Router)",
+    "language": "TypeScript strict (noUncheckedIndexedAccess, exactOptionalPropertyTypes)",
+    "ui": "React 19, Tailwind v3",
+    "state": "Zustand",
+    "validation": "Zod",
+    "unitTests": "Vitest (210 tests), fast-check for property tests",
+    "e2e": "Playwright (chromium project used; CDP touch for mobile). WebKit/Firefox browsers NOT installed here.",
+    "packageManager": "pnpm 10 (do NOT mix with npm; pnpm-lock.yaml + packageManager field present)",
+    "persistence": "localStorage + IndexedDB behind a Storage interface (src/lib/storage.ts). No DB. A Supabase/Neon adapter could implement the same interface later."
+  },
+  "gameMapping": {
+    "Zip": { "slug": "trace", "gameId": "path", "engine": "src/engine/trace", "board": "src/components/game/TraceBoard.tsx", "play": "src/components/game/TracePlay.tsx", "mechanic": "single Hamiltonian path, checkpoints in ascending order, walls, out-of-order moves ALLOWED (order is a win condition not a movement rule)" },
+    "Patches": { "slug": "parcel", "gameId": "partition", "engine": "src/engine/parcel", "board": "src/components/game/ParcelBoard.tsx", "play": "src/components/game/ParcelPlay.tsx", "mechanic": "Shikaku + shape clues (square/wide/tall/free); exact-cover solver (Algorithm X style, MRV)" },
+    "Wend": { "slug": "weave", "gameId": "wordpath", "engine": "src/engine/weave", "board": "src/components/game/WeaveBoard.tsx", "play": "src/components/game/WeavePlay.tsx", "mechanic": "orthogonal word-path tiling, every open letter used once, OBSTACLES (blocked null cells), bundled dictionary + ambiguity solver" },
+    "Queens": { "slug": "queens", "gameId": "queens", "engine": "src/engine/queens", "board": "src/components/game/QueensBoard.tsx", "play": "src/components/game/QueensPlay.tsx", "mechanic": "one queen per row/column/colour-region, no two touching incl. diagonally (king-move). Tap-cycles a cell empty->X->queen->empty (NOT a drag game — QueensBoard uses plain per-cell onClick + keyboard cursor, not usePointerBoard). Sizes: easy 6x6, medium 7x7, hard 8x8, expert 9x9." }
+  },
+  "architecture": {
+    "pureEngine": "src/engine and src/lib are framework-free (no React) so solvers/generators run in Node tests, main thread, and Web Workers identically.",
+    "input": "Drag games (Zip/Patches/Wend) share one Pointer Events system: src/input/usePointerBoard.ts (mouse/touch/stylus, pointer capture, coalesced events, surgical touch-action:none) + src/input/interpolate.ts. Queens is discrete tap-cycle, so QueensBoard does NOT use usePointerBoard — it uses per-cell onClick + arrow/space keyboard.",
+    "workers": "src/workers/{trace,parcel,weave,queens}.worker.ts + *Client.ts run generation off-main-thread with synchronous fallback.",
+    "session": "Per-game Zustand stores in src/engine/*/session.ts. Undo/redo via src/engine/session/history.ts (drag games commit on gesture END; Queens commits one entry per tap). Monotonic timer src/lib/timer.ts. Autosave/resume via src/engine/session/useResume.ts.",
+    "seeds": "Puzzles reproducible from (game, difficulty, seed, generatorVersion). Deterministic RNG src/lib/rng.ts. Daily = date-seed (src/lib/daily.ts). Share links encode the whole puzzle in ?p= (src/engine/io.ts).",
+    "rendering": "DOM grid + SVG overlay/glyphs per game (accessibility + hit-testing win at our sizes)."
+  },
+  "features": {
+    "games": "Four fully playable, procedurally generated, uniqueness-checked games with pointer/tap + full keyboard play, undo/redo, hints, timer, 4 difficulties (easy/medium/hard/expert).",
+    "daily": "src/app/daily/page.tsx — one date-seeded board per game.",
+    "archive": "src/app/archive/page.tsx — calendar, completion ticks, random-unsolved. Original archive from launch (no scraping).",
+    "stats": "src/app/stats/page.tsx — best times, streaks, win rate (on-device).",
+    "editor": "src/app/editor/page.tsx + src/components/game/TraceEditor.tsx — Generate mode (all games, incl. Queens) and Build (Zip) mode with checkpoint + WALL editing, paste-a-grid importer, live uniqueness verdict, share/export/print. Grid sizes 5-8.",
+    "pwa": "public/sw.js + ServiceWorkerRegister — installable, offline play (client generation + cached shell).",
+    "a11y": "role=application boards with aria-live status + roving-focus keyboard; reduced-motion; high-contrast; colour-blind-safe; AA contrast (axe-audited via tests-e2e/a11y.spec.ts)."
+  },
+  "status": {
+    "branch": "main (all work merged; local main synced with origin)",
+    "verification": "210 unit tests pass; full Playwright chromium suite (30) passes; strict typecheck clean; production build clean.",
+    "openPRs": "none",
+    "ci": ".github/workflows/ci.yml runs typecheck+test+build and a chromium e2e job on push/PR."
+  },
+  "conventions": {
+    "branching": "One branch + PR per change. Owner said (this session onward) to MERGE PRs directly without asking.",
+    "handover": "UPDATE handover.json in EVERY PR (owner instruction, 2026-07-15). Keep status.verification counts, gameMapping, features, and recentFixes current so a fresh session can resume from this file alone.",
+    "mergeCmd": "gh pr merge <n> --merge --delete-branch; then git checkout main && git pull --ff-only. Merge stacks bottom-up; retarget bases to main first if stacked (gh pr edit <n> --base main) to avoid the earlier retarget-timing tangle.",
+    "commitAuthor": "Yanzhen Chen <yanzhenchen123@gmail.com> (git config). Include 'Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>' EXCEPT when owner asks for commits 'under my name' (then omit the trailer).",
+    "verifyBeforeCommit": "Always run pnpm typecheck + pnpm test + pnpm build, and relevant e2e, before committing."
+  },
+  "commands": {
+    "install": "pnpm install",
+    "dev": "pnpm dev  (http://localhost:3000)",
+    "test": "pnpm test",
+    "typecheck": "pnpm typecheck",
+    "build": "pnpm build",
+    "e2e": "pnpm exec playwright test --project=chromium-desktop"
+  },
+  "gotchas": [
+    "Next.js DEV does NOT reliably hot-reload Web Worker bundles (new Worker(new URL(...))). After editing a generator, the /play board may serve STALE generation — and running `pnpm build` then `pnpm dev` over the same .next can throw 'Cannot read properties of undefined (reading call)' in the dev overlay. Fix: stop preview, `rm -rf .next`, restart dev; verify with a fresh hard navigation. Production build is always correct.",
+    "Playwright locally uses a shared --localstorage-file, so localStorage persists ACROSS test runs. Fixture puzzles have STABLE ids so stale resume snapshots leak between tests and can look like real bugs. ALWAYS clear localStorage (addInitScript) in tests that use fixtures, or seed a known snapshot deliberately.",
+    "Automated FAST drags (mouse.move with many steps / no delay) rely on interpolation and can under-trace or stall; they are NOT representative. Human-speed drag + touch work fine. For touch e2e use CDP: client.send('Input.dispatchTouchEvent', ...) with Emulation.setTouchEmulationEnabled.",
+    "Playwright webServer reuseExistingServer=true locally: kill stale servers (lsof -ti:3000 | xargs kill -9) before an e2e run to avoid reusing an old build.",
+    "Zip generator achieves uniqueness with WALLS first (keeps numbers sparse, ~8-10 checkpoints) then batched wall additions for speed. Do not revert to checkpoint-only tightening (it over-numbers easy to ~18).",
+    "Queens uniqueness: RANDOM regions are almost never unique (~0% at 8x8+), so the generator does NOT resample — it CARVES: find an alternate solution, reassign one of its queen cells to a neighbouring region (kills that alternate, keeps the intended solution valid), repeat. See refineToUnique in src/engine/queens/generate.ts. 100% unique, avg <8ms, worst ~180ms at 9x9. Do not replace with resample-until-unique."
+  ],
+  "recentFixes": [
+    "Core unit-test coverage added (grid, hash, schemas incl. queens invariants, games registry, storage adapter, settings.resolveTheme) — 173 -> 210 unit tests. Note: zustand persist store setters are hard to unit-test in the vitest localStorage env (the LocalStorageAdapter is resilient and IS tested); test resolveTheme + read-only state instead.",
+    "Queens (NEW GAME, PR #24): full engine (rules/solve/generate/session), QueensBoard + QueensPlay, worker + client, editor/print/registry wiring, 26 unit + 4 e2e. Uniqueness via region carving (see gotchas).",
+    "Zip: out-of-order checkpoint moves allowed (ordering is a win condition); solver enforces order via canExtendSolving.",
+    "Zip: generator over-numbering fixed (walls-first + batched); expert gen 7841ms -> 86ms.",
+    "Zip: resume restore() validates snapshot vs current puzzle (must start at start cell, legal path, not solved, not clobber in-progress) — fixed the desktop AND mobile 'can't drag' (stale snapshot stranded the head).",
+    "Zip: dark-mode badge contrast (white-on-white) fixed — badge text uses --c-surface so it inverts with theme.",
+    "Weave hint: uses solveWeave (full solution) not greedy findWordPath — greedy could strand.",
+    "Patches: clue badges shaped like the required shape (square/wide/tall/free) with number inside.",
+    "Wend: generator now carves OBSTACLES (blocked null cells); Hamiltonian path over open cells only."
+  ],
+  "knownFollowups": [
+    "Queens & Parcel & Weave session restore() could get the same defensive snapshot validation Trace got (Queens restore already guards length/values/solved/clobber; the others are lighter).",
+    "Weave: full accidental-word detection across arbitrary sub-paths is deferred to a quality/editorial layer; current generator guarantees the intended-word tiling is unique and draws only from the filtered dictionary.",
+    "Parcel quality gate uses structural proxies (no 1x1 dominance, min tiles); a deduction-depth gate is a planned refinement.",
+    "Free-form editor supports Zip (checkpoints + walls) only; Parcel/Weave/Queens free-form editors not built (Queens is generate-only in the editor).",
+    "Full mobile-device Playwright matrix needs `pnpm exec playwright install webkit firefox` (only chromium downloaded here).",
+    "Optional cloud sync: implement a Supabase/Neon adapter against the existing Storage interface."
+  ],
+  "docs": {
+    "spec": "docs/SPEC.md (full technical spec, 14 sections; §7 local-first no-DB, §13 legal/IP)",
+    "research": "docs/RESEARCH.md (rules research with sources + confidence levels)",
+    "readme": "README.md"
+  }
+}
