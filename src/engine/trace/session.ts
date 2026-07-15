@@ -31,6 +31,7 @@ import {
   extend,
   initialPathState,
   isSolved,
+  startCell,
   validate,
 } from "./rules";
 import { computeHint } from "./solve";
@@ -246,8 +247,22 @@ export function createTraceSession(puzzle: PathPuzzle) {
       },
 
       restore: (snap) => {
+        const s = get();
         const live = snap.player as number[];
+        // Reject a snapshot that isn't a legal, in-progress path for THIS puzzle.
+        // A mismatched/corrupt snapshot would otherwise strand the path head so
+        // the board can't be drawn on (the resume-vs-drag bug). Guards:
+        //  • must be a non-empty array starting at this puzzle's start cell;
+        //  • every step must be a legal move;
+        //  • don't restore an already-finished board;
+        //  • don't clobber a game the player has already started.
         if (!Array.isArray(live) || live.length === 0) return;
+        if (live[0] !== startCell(s.puzzle)) return;
+        for (let i = 1; i < live.length; i++) {
+          if (!canExtend(s.puzzle, live.slice(0, i), live[i]!).ok) return;
+        }
+        if (isSolved(s.puzzle, live)) return;
+        if (s.live.length > 1) return;
         set({
           live,
           history: createHistory(live),

@@ -130,10 +130,14 @@ export function TraceBoard({ store }: { store: TraceStore }) {
               )}
               {cp !== undefined && (
                 <span
-                  className="relative z-10 grid h-[66%] w-[66%] place-items-center rounded-full text-[min(4.4vw,1.15rem)] font-bold text-white"
+                  className="relative z-10 grid h-[66%] w-[66%] place-items-center rounded-full text-[min(4.4vw,1.15rem)] font-bold"
                   style={{
-                    // Start (1) uses the accent; the rest are crisp dark badges.
+                    // Start (1) uses the accent; the rest are ink badges. The text
+                    // colour is the SURFACE colour so it inverts with the theme
+                    // (dark text on the light ink badge in dark mode, and vice
+                    // versa) — never white-on-white.
                     background: cp === 1 ? "rgb(var(--c-path))" : "rgb(var(--c-ink))",
+                    color: "rgb(var(--c-surface))",
                     boxShadow: "0 1px 2px rgba(0,0,0,.35)",
                   }}
                 >
