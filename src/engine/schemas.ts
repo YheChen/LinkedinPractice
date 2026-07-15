@@ -14,7 +14,7 @@ const dim = z.number().int().min(MIN_DIM).max(MAX_DIM);
 const cellIndex = z.number().int().min(0).max(MAX_DIM * MAX_DIM - 1);
 
 export const difficultySchema = z.enum(["easy", "medium", "hard", "expert"]);
-export const gameIdSchema = z.enum(["path", "partition", "wordpath"]);
+export const gameIdSchema = z.enum(["path", "partition", "wordpath", "queens"]);
 
 export const puzzleMetaSchema = z.object({
   id: z.string().min(1).max(128),
@@ -54,10 +54,17 @@ export const wordPathPuzzleSchema = z.object({
   words: z.array(z.string().min(2).max(MAX_DIM * MAX_DIM)).min(1),
 });
 
+export const queensPuzzleSchema = z.object({
+  game: z.literal("queens"),
+  meta: puzzleMetaSchema,
+  regions: z.array(z.number().int().min(0).max(MAX_DIM - 1)).max(MAX_DIM * MAX_DIM),
+});
+
 export const puzzleDefinitionSchema = z.discriminatedUnion("game", [
   pathPuzzleSchema,
   partitionPuzzleSchema,
   wordPathPuzzleSchema,
+  queensPuzzleSchema,
 ]);
 
 export type PuzzleDefinitionInput = z.infer<typeof puzzleDefinitionSchema>;
@@ -96,5 +103,53 @@ export function validateDefinitionInvariants(def: PuzzleDefinitionInput): string
       if (Number(k) >= size) errs.push(`checkpoint cell ${k} out of range`);
     }
   }
+  if (def.game === "queens") {
+    if (rows !== cols) errs.push(`Queens board must be square (got ${rows}x${cols})`);
+    if (def.regions.length !== size) {
+      errs.push(`regions length ${def.regions.length} != rows*cols ${size}`);
+    } else {
+      const present = new Set(def.regions);
+      if (present.size !== rows || Math.max(...def.regions) !== rows - 1) {
+        errs.push(`regions must use exactly ids 0..${rows - 1}`);
+      } else if (!regionsConnected(def.regions, rows, cols)) {
+        errs.push("each region must be orthogonally connected");
+      }
+    }
+  }
   return errs;
+}
+
+/** Every region id forms a single orthogonally-connected blob. */
+function regionsConnected(regions: number[], rows: number, cols: number): boolean {
+  const seen = new Array<boolean>(regions.length).fill(false);
+  const counts = new Map<number, number>();
+  for (const r of regions) counts.set(r, (counts.get(r) ?? 0) + 1);
+  for (let start = 0; start < regions.length; start++) {
+    const id = regions[start]!;
+    if (seen[start]) continue;
+    // Flood the blob containing `start`; compare its size to the region total.
+    let size = 0;
+    const stack = [start];
+    seen[start] = true;
+    while (stack.length) {
+      const cell = stack.pop()!;
+      size++;
+      const r = Math.floor(cell / cols);
+      const c = cell % cols;
+      const nbrs = [
+        r > 0 ? cell - cols : -1,
+        r < rows - 1 ? cell + cols : -1,
+        c > 0 ? cell - 1 : -1,
+        c < cols - 1 ? cell + 1 : -1,
+      ];
+      for (const nb of nbrs) {
+        if (nb >= 0 && !seen[nb] && regions[nb] === id) {
+          seen[nb] = true;
+          stack.push(nb);
+        }
+      }
+    }
+    if (size !== counts.get(id)) return false; // region split into ≥2 blobs
+  }
+  return true;
 }

@@ -39,6 +39,15 @@ export const GAMES: readonly GameInfo[] = [
     accentVar: "--c-word",
     glyph: "word",
   },
+  {
+    id: "queens",
+    slug: "queens",
+    name: "Queens",
+    tagline: "One crown per row, column, and colour.",
+    rules: "Place one queen in every row, column, and colour region so that no two queens touch — not even diagonally. Tap to cycle a cell empty, cross-out, queen.",
+    accentVar: "--c-queen",
+    glyph: "queens",
+  },
 ] as const;
 
 export function gameBySlug(slug: string): GameInfo | undefined {

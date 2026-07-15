@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("Daily: links deep-link into a date-seeded board", async ({ page }) => {
   await page.goto("/daily");
-  await expect(page.getByRole("heading", { name: /Today’s three puzzles/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Today’s four puzzles/i })).toBeVisible();
 
   await page.getByRole("link", { name: /Play today’s Zip/i }).click();
   // URL carries the daily seed + difficulty.
