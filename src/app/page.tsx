@@ -7,7 +7,7 @@ export default function HomePage() {
     <div className="mx-auto w-full max-w-5xl">
       <section className="py-6 sm:py-10">
         <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-          Three puzzles. Endless play.
+          Four puzzles. Endless play.
         </h1>
         <p className="mt-2 max-w-prose text-ink-muted">
           Original logic and word puzzles with unlimited procedurally-generated boards, a daily
@@ -33,7 +33,7 @@ export default function HomePage() {
         <h2 id="games-heading" className="sr-only">
           Choose a game
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {GAMES.map((g) => (
             <GameCard key={g.id} game={g} />
           ))}

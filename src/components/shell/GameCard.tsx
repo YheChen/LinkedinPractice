@@ -51,6 +51,14 @@ function GlyphMini({ kind }: { kind: string }) {
       </svg>
     );
   }
+  if (kind === "queens") {
+    return (
+      <svg viewBox="0 0 32 32" width="34" height="34" fill="none" stroke={stroke} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round">
+        <path d="M5 11 l5 5 L16 7 l6 9 l5 -5 l-2.5 14 H7.5 Z" />
+        <path d="M8 26 h16" />
+      </svg>
+    );
+  }
   return (
     <svg viewBox="0 0 32 32" width="34" height="34" fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="8" cy="8" r="2.5" />

@@ -42,6 +42,10 @@ async function generate(game: GameId, difficulty: Difficulty, seed: string): Pro
     const { generateParcelAsync } = await import("@/workers/parcelClient");
     return generateParcelAsync({ difficulty, seed });
   }
+  if (game === "queens") {
+    const { generateQueensAsync } = await import("@/workers/queensClient");
+    return generateQueensAsync({ difficulty, seed });
+  }
   const { generateWeaveAsync } = await import("@/workers/weaveClient");
   return generateWeaveAsync({ difficulty, seed });
 }

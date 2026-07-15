@@ -17,13 +17,13 @@ export default function DailyPage() {
         <p className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
           Daily challenge · {shortDate(today)}
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Today’s three puzzles</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Today’s four puzzles</h1>
         <p className="mt-1 text-ink-muted">
           One board per game, the same for everyone today. Come back tomorrow for a fresh set.
         </p>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {GAMES.map((g) => (
           <Link
             key={g.id}

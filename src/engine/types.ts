@@ -12,7 +12,7 @@
  * of truth for import/export and API validation.
  */
 
-export type GameId = "path" | "partition" | "wordpath"; // Zip / Patches / Wend styled
+export type GameId = "path" | "partition" | "wordpath" | "queens"; // Zip / Patches / Wend / Queens styled
 export type Difficulty = "easy" | "medium" | "hard" | "expert";
 
 /** Bumped when a generator's output for a given seed changes. Old puzzles keep their version. */
@@ -76,7 +76,21 @@ export interface WordPathPuzzle {
   words: string[];
 }
 
-export type PuzzleDefinition = PathPuzzle | PartitionPuzzle | WordPathPuzzle;
+// ---------- Game 4: Queens (crowns, one per row/col/region, none touching) ----------
+
+export interface QueensPuzzle {
+  game: "queens";
+  meta: PuzzleMeta;
+  /**
+   * Region id (0..n-1) for each cell index, where n = rows = cols. There are
+   * exactly n connected regions; the puzzle asks for exactly one queen per row,
+   * per column, and per region, with no two queens touching (incl. diagonally).
+   * The regions alone determine the single valid solution.
+   */
+  regions: number[];
+}
+
+export type PuzzleDefinition = PathPuzzle | PartitionPuzzle | WordPathPuzzle | QueensPuzzle;
 
 // ---------- Player state (mutable) ----------
 
@@ -107,10 +121,17 @@ export interface WordPathPlayerState {
   active: number[];
 }
 
+/** Queens: per-cell mark — 0 empty, 1 excluded (X), 2 queen (crown). */
+export interface QueensPlayerState {
+  game: "queens";
+  cells: number[];
+}
+
 export type PlayerState =
   | PathPlayerState
   | PartitionPlayerState
-  | WordPathPlayerState;
+  | WordPathPlayerState
+  | QueensPlayerState;
 
 // ---------- Derived validation state (never persisted) ----------
 

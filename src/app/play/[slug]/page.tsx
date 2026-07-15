@@ -4,11 +4,23 @@ import { Placeholder } from "@/components/shell/Placeholder";
 import { TracePlay } from "@/components/game/TracePlay";
 import { ParcelPlay } from "@/components/game/ParcelPlay";
 import { WeavePlay } from "@/components/game/WeavePlay";
-import type { Difficulty, PartitionPuzzle, PathPuzzle, WordPathPuzzle } from "@/engine/types";
+import { QueensPlay } from "@/components/game/QueensPlay";
+import type {
+  Difficulty,
+  PartitionPuzzle,
+  PathPuzzle,
+  QueensPuzzle,
+  WordPathPuzzle,
+} from "@/engine/types";
 import { decodeShare } from "@/engine/io";
 
 const DIFFICULTIES = new Set<Difficulty>(["easy", "medium", "hard", "expert"]);
-const SLUG_GAME: Record<string, string> = { trace: "path", parcel: "partition", weave: "wordpath" };
+const SLUG_GAME: Record<string, string> = {
+  trace: "path",
+  parcel: "partition",
+  weave: "wordpath",
+  queens: "queens",
+};
 
 function parseDifficulty(v: string | string[] | undefined): Difficulty | undefined {
   const s = Array.isArray(v) ? v[0] : v;
@@ -31,7 +43,7 @@ export default async function PlayPage({
   const difficulty = parseDifficulty(sp.d);
 
   // Shared/imported puzzle via ?p= (Zod-validated, must match the route's game).
-  let shared: PathPuzzle | PartitionPuzzle | WordPathPuzzle | undefined;
+  let shared: PathPuzzle | PartitionPuzzle | WordPathPuzzle | QueensPuzzle | undefined;
   if (typeof sp.p === "string") {
     const res = decodeShare(sp.p);
     if (res.ok && res.def && res.def.game === SLUG_GAME[slug]) shared = res.def;
@@ -43,6 +55,8 @@ export default async function PlayPage({
     return <ParcelPlay initialSeed={seed} initialDifficulty={difficulty} initialPuzzle={shared as PartitionPuzzle | undefined} />;
   if (slug === "weave")
     return <WeavePlay initialSeed={seed} initialDifficulty={difficulty} initialPuzzle={shared as WordPathPuzzle | undefined} />;
+  if (slug === "queens")
+    return <QueensPlay initialSeed={seed} initialDifficulty={difficulty} initialPuzzle={shared as QueensPuzzle | undefined} />;
 
   return (
     <Placeholder title={game.name} milestone="Upcoming">

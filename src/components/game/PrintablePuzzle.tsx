@@ -7,6 +7,8 @@ export function PrintablePuzzle({ def }: { def: PuzzleDefinition }) {
   const cellContent = (i: number): string => {
     if (def.game === "path") return def.checkpoints[i] != null ? String(def.checkpoints[i]) : "";
     if (def.game === "wordpath") return def.letters[i] ?? "";
+    // queens: label each cell with its region letter (ink-friendly, no colour)
+    if (def.game === "queens") return String.fromCharCode(65 + (def.regions[i] ?? 0));
     // partition: show clue number (+ shape marker)
     const clue = def.clues.find((c) => c.cell === i);
     if (!clue) return "";
